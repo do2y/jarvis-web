@@ -8,6 +8,7 @@ const HomePage = lazy(() => import('@/pages/home'));
 const ProductPage = lazy(() => import('@/pages/product'));
 const BrandPage = lazy(() => import('@/pages/brand'));
 const CartPage = lazy(() => import('@/pages/cart'));
+const WishlistPage = lazy(() => import('@/pages/wishlist'));
 const CheckoutPage = lazy(() => import('@/pages/checkout'));
 const MyPage = lazy(() => import('@/pages/mypage'));
 const InquiryPage = lazy(() => import('@/pages/inquiry'));
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { path: '/cart', element: <CartPage /> },
+          { path: '/wishlist', element: <WishlistPage /> }, // 찜: 로그인 필요
           { path: '/checkout', element: <CheckoutPage /> },
           { path: '/mypage/*', element: <MyPage /> },
         ],

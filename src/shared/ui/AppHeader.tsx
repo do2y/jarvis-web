@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Heart, ShoppingCart } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/shared/stores/authStore";
@@ -22,25 +23,52 @@ export function AppHeader({ showMenu = true }: AppHeaderProps) {
           <span className="text-lg font-bold tracking-tight">Jarvis</span>
         </Link>
 
-        {showMenu &&
-          (user ? (
-            <span className="text-sm font-medium">{user.nickname}님</span>
-          ) : (
-            <nav className="flex items-center gap-2">
-              <Link
-                to="/login"
-                className={cn(buttonVariants({ variant: "ghost" }), "h-9")}
-              >
-                로그인
-              </Link>
-              <Link
-                to="/signup"
-                className={cn(buttonVariants(), "h-9 rounded-full px-4")}
-              >
-                시작하기
-              </Link>
-            </nav>
-          ))}
+        {showMenu && (
+          <nav className="flex items-center gap-1 sm:gap-2">
+            {/* 찜·장바구니는 게스트에게도 노출, 클릭 시 라우트 가드가 로그인 유도 */}
+            <Link
+              to="/wishlist"
+              aria-label="찜 목록"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "size-9",
+              )}
+            >
+              <Heart className="size-5" />
+            </Link>
+            <Link
+              to="/cart"
+              aria-label="장바구니"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "size-9",
+              )}
+            >
+              <ShoppingCart className="size-5" />
+            </Link>
+
+            {user ? (
+              <span className="ml-1 text-sm font-medium sm:ml-2">
+                {user.nickname}님
+              </span>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className={cn(buttonVariants({ variant: "ghost" }), "h-9")}
+                >
+                  로그인
+                </Link>
+                <Link
+                  to="/signup"
+                  className={cn(buttonVariants(), "h-9 rounded-full px-4")}
+                >
+                  시작하기
+                </Link>
+              </>
+            )}
+          </nav>
+        )}
       </div>
     </header>
   );
