@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AppHeader } from "@/shared/ui/AppHeader";
 import { LoginForm } from "./components/LoginForm";
 import { SignupForm } from "./components/SignupForm";
 
@@ -20,12 +21,8 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-muted/40">
-      <header className="flex h-16 items-center gap-2 border-b bg-background px-4 sm:px-6">
-        <span className="flex size-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-          J
-        </span>
-        <span className="text-lg font-bold">Jarvis</span>
-      </header>
+      {/* 로그인/회원가입 화면엔 우측 로그인·시작하기 메뉴 숨김 (이미 이 화면에 폼이 있어 중복) */}
+      <AppHeader showMenu={false} />
 
       <main className="flex min-h-[calc(100vh-4rem)] items-start justify-center px-4 pt-24 pb-10 sm:items-center sm:pt-12 sm:pb-24">
         <div className="w-full max-w-md rounded-2xl bg-background p-6 shadow-sm sm:p-8">

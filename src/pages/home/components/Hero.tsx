@@ -27,7 +27,7 @@ export function Hero() {
 
         {/* 표시용 입력창 — 채팅 화면 생기면 제출 연결 (지금은 동작 없음) */}
         <form
-          className="mt-10 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-sm"
+          className="mt-15 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-sm"
           onSubmit={(e) => e.preventDefault()}
           aria-label="Jarvis에게 요청하기"
         >
