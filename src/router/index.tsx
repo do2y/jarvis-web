@@ -5,6 +5,7 @@ import { RequireAuth, RequireRole } from './guards';
 // 페이지 단위 코드 스플리팅 (lazy)
 const AuthPage = lazy(() => import('@/pages/auth'));
 const HomePage = lazy(() => import('@/pages/home'));
+const ChatPage = lazy(() => import('@/pages/chat'));
 const ProductPage = lazy(() => import('@/pages/product'));
 const BrandPage = lazy(() => import('@/pages/brand'));
 const CartPage = lazy(() => import('@/pages/cart'));
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
     children: [
       // ── 공개 라우트 (게스트 접근 가능) ──
       { path: '/', element: <HomePage /> },
+      { path: '/chat', element: <ChatPage /> }, // 챗봇: 게스트도 사용 가능
       { path: '/login', element: <AuthPage /> },
       { path: '/signup', element: <AuthPage /> },
       { path: '/products/:productId', element: <ProductPage /> },

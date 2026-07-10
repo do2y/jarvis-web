@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, SendHorizontal } from "lucide-react";
 import { useRotatingIndex } from "../hooks/useRotatingIndex";
 
-// 예시 질문 칩 — 클릭 시 채팅 시작(미구현). 지금은 표시 + TODO
+// 예시 질문 칩 — 클릭 시 해당 문장으로 채팅 시작
 const EXAMPLE_CHIPS = [
   "자취 시작템 추천",
   "유럽 여행 준비물",
@@ -20,6 +21,7 @@ const PLACEHOLDER_PHRASES = [
 ];
 
 export function Hero() {
+  const navigate = useNavigate();
   // 포커스되거나 입력값이 있으면 롤링 멈추고 가짜 placeholder도 숨김 (입력 방해 방지)
   const [focused, setFocused] = useState(false);
   const [value, setValue] = useState("");
@@ -28,6 +30,12 @@ export function Hero() {
   const { index, animate, onSlideEnd } = useRotatingIndex(count, {
     paused: !showRolling,
   });
+
+  // 입력 내용을 첫 메시지로 채팅 화면에 전달
+  const startChat = (message: string) => {
+    const q = message.trim();
+    if (q) navigate(`/chat?q=${encodeURIComponent(q)}`);
+  };
 
   return (
     <section className="px-6 pt-20 pb-36 sm:pt-28 sm:pb-44">
@@ -41,10 +49,13 @@ export function Hero() {
           <span className="text-brand">Jarvis</span>가 찾아드립니다
         </h1>
 
-        {/* 표시용 입력창 — 채팅 화면 생기면 제출 연결 (지금은 동작 없음) */}
+        {/* 입력 내용을 첫 메시지로 채팅 화면에 전달 */}
         <form
           className="mt-15 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-sm"
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            startChat(value);
+          }}
           aria-label="Jarvis에게 요청하기"
         >
           <Search className="size-5 shrink-0 text-muted-foreground" />
@@ -106,9 +117,9 @@ export function Hero() {
         <ul className="mt-6 flex flex-wrap justify-center gap-2.5">
           {EXAMPLE_CHIPS.map((chip) => (
             <li key={chip}>
-              {/* TODO: 클릭 시 해당 문장으로 채팅 시작 */}
               <button
                 type="button"
+                onClick={() => startChat(chip)}
                 className="rounded-full border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 {chip}
