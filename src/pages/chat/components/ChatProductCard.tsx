@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProductCard } from "@/shared/types/chat";
 
@@ -15,7 +15,7 @@ export function ChatProductCard({ product }: { product: ProductCard }) {
   return (
     // TODO: 클릭 시 상세로 이동 + setQueryData(['products', id])로 카드 데이터 시딩
     <div className="group flex flex-col overflow-hidden rounded-xl border bg-background">
-      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+      <div className="relative aspect-square overflow-hidden bg-muted">
         <img
           src={product.imageUrl}
           alt={product.name}
@@ -49,15 +49,26 @@ export function ChatProductCard({ product }: { product: ProductCard }) {
           {product.reason}
         </p>
 
-        <div className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-2">
-          <span className="text-base font-bold">
-            {formatPrice(product.price)}
-          </span>
-          {hasDiscount && (
-            <span className="text-sm text-muted-foreground line-through">
-              {formatPrice(product.originalPrice)}
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-base font-bold">
+              {formatPrice(product.price)}
             </span>
-          )}
+            {hasDiscount && (
+              <span className="text-sm text-muted-foreground line-through">
+                {formatPrice(product.originalPrice)}
+              </span>
+            )}
+          </div>
+
+          {/* TODO: 장바구니 API·훅 연결 시 담기 처리 + invalidate(['cart']) */}
+          <button
+            type="button"
+            aria-label="장바구니에 담기"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ShoppingCart className="size-4" />
+          </button>
         </div>
       </div>
     </div>
