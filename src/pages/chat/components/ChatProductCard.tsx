@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Heart, ShoppingCart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import type { ProductCard } from "@/shared/types/chat";
 
@@ -10,18 +12,32 @@ function formatPrice(v: number): string {
 export function ChatProductCard({ product }: { product: ProductCard }) {
   // 찜 상태는 UI만(찜 API 연동은 별도). CLAUDE.md상 찜은 찜 API 직접 호출 예정
   const [wished, setWished] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const hasDiscount = product.originalPrice > product.price;
 
+  // 캐시 승계: 카드 데이터를 상세 캐시에 시딩해 상세 진입 시 즉시 렌더(부족분만 백그라운드 페칭)
+  const goToDetail = () => {
+    queryClient.setQueryData(["products", product.productId], product);
+    navigate(`/products/${product.productId}`);
+  };
+
   return (
-    // TODO: 클릭 시 상세로 이동 + setQueryData(['products', id])로 카드 데이터 시딩
     <div className="group flex flex-col overflow-hidden rounded-xl border bg-background">
       <div className="relative aspect-square overflow-hidden bg-muted">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          loading="lazy"
-          className="size-full object-cover transition-transform group-hover:scale-105"
-        />
+        <button
+          type="button"
+          onClick={goToDetail}
+          aria-label={`${product.name} 상세 보기`}
+          className="block size-full"
+        >
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            loading="lazy"
+            className="size-full object-cover transition-transform group-hover:scale-105"
+          />
+        </button>
         <button
           type="button"
           onClick={() => setWished((w) => !w)}
@@ -43,7 +59,13 @@ export function ChatProductCard({ product }: { product: ProductCard }) {
           {product.brandName}
         </p>
         <h3 className="line-clamp-2 text-sm font-semibold leading-snug">
-          {product.name}
+          <button
+            type="button"
+            onClick={goToDetail}
+            className="text-left hover:underline"
+          >
+            {product.name}
+          </button>
         </h3>
         <p className="line-clamp-2 text-sm text-muted-foreground">
           {product.reason}
