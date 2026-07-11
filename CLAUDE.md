@@ -17,26 +17,11 @@
 - 페이지별 목적·핵심 기능은 `docs/features.md` 참조. 페이지 작업 시 해당 섹션을 먼저 읽고, 이번 세션에서 만들 범위는 프롬프트로 별도 지정받는다
 
 ## 기술 스택
-Vite · React · TypeScript(strict) · React Router · TanStack Query(서버 상태) · Zustand(클라이언트 상태) · React Hook Form + Zod(폼) · Axios(공용 인스턴스+인터셉터) · Tailwind + shadcn/ui · MSW(목)
-- 새 라이브러리 추가는 먼저 제안하고 승인받을 것
+- 스택은 코드에서 확인. **새 라이브러리 추가는 먼저 제안하고 승인받을 것**
 
 ## 디렉토리 (응집도 우선)
-```
-src/
-├── pages/<page>/{components,hooks,utils}   # 그 페이지에서만 쓰는 것은 여기
-│   auth home product brand cart checkout mypage inquiry seller admin
-├── shared/                                  # 2개 이상 페이지가 쓰는 것만 승격
-│   ├── ui/      # 순수 UI 부품 (shadcn 기반: Button, Modal, Skeleton...)
-│   ├── chat/    # 챗봇 공통 모듈 (streamChat 등)
-│   ├── api/     # axios 인스턴스/인터셉터, 도메인별 API 함수
-│   ├── hooks/   # 도메인 훅 (useCart, useProduct, useAuth...)
-│   ├── stores/  # zustand (authStore 등)
-│   ├── types/   # API 계약 타입 (chat.ts 등)
-│   └── utils/
-├── mocks/       # MSW (browser.ts, handlers.ts)
-└── router/      # index.tsx(라우트 정의) + guards.tsx(권한 가드)
-```
-**원칙**: 같이 수정될 것들은 같이 둔다. 페이지 전용은 페이지 폴더에, 공용이 된 순간에만 shared로 옮긴다. 미리 shared에 만들지 않는다.
+- `src/pages/<page>/{components,hooks,utils}` — 그 페이지에서만 쓰는 것. `src/shared/`(ui·chat·api·hooks·stores·types·utils) — **2개 이상 페이지가 쓰는 것만 승격**. `src/mocks/`(MSW) · `src/router/`(index=라우트, guards=권한 가드)
+- **원칙**: 같이 수정될 것들은 같이 둔다. 페이지 전용은 페이지 폴더에, 공용이 된 순간에만 shared로 옮긴다. 미리 shared에 만들지 않는다
 
 ## 컴포넌트 (2계층)
 - **순수 UI (shared/ui)**: 도메인을 모른다. 도메인 객체 대신 원시값/노드만 받는다.
@@ -59,7 +44,7 @@ src/
 
 ## 인증/권한 (구현: src/router/guards.tsx, src/shared/api/client.ts, src/shared/stores/authStore.ts)
 - 계정 3종: MEMBER / SELLER / ADMIN. 라우트 가드에서 역할별 접근 제어 (RequireAuth, RequireRole)
-- 게스트: 탐색·챗봇 가능(횟수 제한 없음, 개인화만 미적용). 구매·장바구니·찜·마이페이지는 로그인 필요
+- 게스트: 탐색·챗봇·**장바구니 담기**까지 가능(횟수 제한 없음, 개인화만 미적용). 구매·찜·마이페이지는 로그인 필요
 - 미인증 접근 → `?returnUrl=` 붙여 /login, 로그인 후 복귀
 - 토큰: 인터셉터에서 자동 첨부, 401 → refresh 1회 재시도 → 실패 시 clearAuth + 로그인 이동. **이 로직은 shared/api에만 존재**
 
@@ -106,6 +91,5 @@ src/
 
 ## 미확정 (정해지면 이 문서 갱신)
 - sessionId 10분 TTL 만료 시 응답/재발급 스펙
-- 게스트 일반 장바구니 담기 정책 (챗봇 403과의 일관성 위해 로그인 유도로 통일 검토 중)
 - 판매자/관리자 계정 생성 방식 (별도 가입 vs DB 시드)
 - refresh 엔드포인트·필드, 채팅 엔드포인트 (현재 client.ts / streamChat.ts에 placeholder)
