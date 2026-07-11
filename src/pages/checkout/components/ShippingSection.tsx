@@ -7,10 +7,12 @@ export function ShippingSection({
   addresses,
   selectedId,
   onSelect,
+  onAddClick,
 }: {
   addresses: Address[];
   selectedId: string;
   onSelect: (id: string) => void;
+  onAddClick: () => void;
 }) {
   return (
     <section className="rounded-xl border bg-background p-5 sm:p-6">
@@ -65,6 +67,7 @@ export function ShippingSection({
 
       <button
         type="button"
+        onClick={onAddClick}
         className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed text-sm text-muted-foreground hover:bg-muted/40"
       >
         <Plus className="size-4" />새 배송지 추가

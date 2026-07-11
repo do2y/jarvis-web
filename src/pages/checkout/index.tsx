@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import { AppHeader } from "@/shared/ui/AppHeader";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { CheckoutState } from "./types";
+import type { Address, CheckoutState } from "./types";
 import { PAYMENT_METHODS, PLACEHOLDER_ADDRESSES } from "./placeholder";
 import { OrderItems } from "./components/OrderItems";
 import { ShippingSection } from "./components/ShippingSection";
+import { AddressFormModal } from "./components/AddressFormModal";
 import { PaymentSection } from "./components/PaymentSection";
 import { OrderSummary } from "./components/OrderSummary";
 
@@ -22,9 +23,21 @@ export default function CheckoutPage() {
     PLACEHOLDER_ADDRESSES.find((a) => a.isDefault)?.id ??
     PLACEHOLDER_ADDRESSES[0]?.id ??
     "";
+  // 배송지 목록은 로컬 소유(추가분 반영). 계약 후 배송지 조회 API로 대체.
+  const [addresses, setAddresses] = useState<Address[]>(PLACEHOLDER_ADDRESSES);
   const [addressId, setAddressId] = useState(defaultAddressId);
+  const [addrModalOpen, setAddrModalOpen] = useState(false);
   const [method, setMethod] = useState<string>(PAYMENT_METHODS[0]);
   const [agreed, setAgreed] = useState(false);
+
+  // 새 배송지 임시 id 카운터 — 서버 id 부여 전 로컬 구분용.
+  const nextIdRef = useRef(1);
+
+  const handleAddAddress = (addr: Omit<Address, "id">) => {
+    const id = `new-${nextIdRef.current++}`;
+    setAddresses((prev) => [...prev, { ...addr, id }]);
+    setAddressId(id); // 방금 추가한 배송지를 선택
+  };
 
   const { itemsTotal, discount } = useMemo(() => {
     const total = items.reduce(
@@ -76,9 +89,10 @@ export default function CheckoutPage() {
           <div className="flex flex-1 flex-col gap-6">
             <OrderItems items={items} />
             <ShippingSection
-              addresses={PLACEHOLDER_ADDRESSES}
+              addresses={addresses}
               selectedId={addressId}
               onSelect={setAddressId}
+              onAddClick={() => setAddrModalOpen(true)}
             />
             <PaymentSection method={method} onMethodChange={setMethod} />
 
@@ -122,6 +136,12 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
+
+      <AddressFormModal
+        open={addrModalOpen}
+        onOpenChange={setAddrModalOpen}
+        onSubmit={handleAddAddress}
+      />
     </div>
   );
 }
