@@ -35,3 +35,13 @@ export interface RecentProduct {
   price: number;
   viewedAt: string; // ISO 일시 — 최신순 정렬 기준
 }
+
+// 찜한 상품 — 카드 표시용(상세 캐시 시딩) + 찜 등록 시각(최신순 정렬 기준).
+export interface WishlistProduct {
+  productId: number;
+  name: string;
+  brand: string;
+  imageUrl: string;
+  price: number;
+  wishedAt: string; // ISO 일시 — 최신순 정렬 기준
+}

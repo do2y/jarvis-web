@@ -4,6 +4,7 @@ import { ProfileHeader } from "./components/ProfileHeader";
 import { MyPageNav } from "./components/MyPageNav";
 import OrdersPage from "./OrdersPage";
 import RecentProductsPage from "./RecentProductsPage";
+import WishlistPage from "./WishlistPage";
 import ComingSoonPage from "./ComingSoonPage";
 
 export default function MyPage() {
@@ -24,10 +25,7 @@ export default function MyPage() {
                 element={<ComingSoonPage title="취소·반품·교환" />}
               />
               <Route path="recent" element={<RecentProductsPage />} />
-              <Route
-                path="wishlist"
-                element={<ComingSoonPage title="찜" />}
-              />
+              <Route path="wishlist" element={<WishlistPage />} />
               <Route
                 path="addresses"
                 element={<ComingSoonPage title="배송지 관리" />}

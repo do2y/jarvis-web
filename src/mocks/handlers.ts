@@ -24,6 +24,51 @@ const MOCK_ACCOUNTS: Record<
   "admin@test.com": { id: 3, nickname: "관리자", role: "ADMIN" },
 };
 
+// 찜한 상품 목 — mypage/types.ts WishlistProduct 계약. wishedAt 내림차순(최신순).
+// let: 찜 해제 DELETE에서 배열을 갈아끼워 목에도 반영. 핸들러가 참조하므로 배열 위에 선언.
+let mockWishlist = [
+  {
+    productId: 202,
+    name: "세탄 드레이프 원피스 NVOP3300",
+    brand: "라인어디션",
+    imageUrl: "https://picsum.photos/seed/wish-dress2/500/500",
+    price: 118000,
+    wishedAt: "2025-07-12T11:02:00+09:00",
+  },
+  {
+    productId: 203,
+    name: "플리츠 새틴 롱 원피스 EH2241",
+    brand: "에르모사",
+    imageUrl: "https://picsum.photos/seed/wish-dress3/500/500",
+    price: 145000,
+    wishedAt: "2025-07-11T19:20:00+09:00",
+  },
+  {
+    productId: 301,
+    name: "스테어넥 벨티드 미디 원피스",
+    brand: "더센트",
+    imageUrl: "https://picsum.photos/seed/wish-dress1/500/500",
+    price: 92000,
+    wishedAt: "2025-07-10T13:44:00+09:00",
+  },
+  {
+    productId: 205,
+    name: "플로럴 랩 원피스 FL7788",
+    brand: "라인어디션",
+    imageUrl: "https://picsum.photos/seed/wish-dress5/500/500",
+    price: 108000,
+    wishedAt: "2025-07-09T10:15:00+09:00",
+  },
+  {
+    productId: 206,
+    name: "도트 퍼프 원피스 DT3311",
+    brand: "쁘띠메종",
+    imageUrl: "https://picsum.photos/seed/wish-dot/500/500",
+    price: 73000,
+    wishedAt: "2025-07-08T22:03:00+09:00",
+  },
+];
+
 export const handlers = [
   http.post(`${BASE}/api/auth/login`, async ({ request }) => {
     const { email } = (await request.json()) as {
@@ -137,6 +182,17 @@ export const handlers = [
   http.get(`${BASE}/api/mypage/recent-products`, () =>
     HttpResponse.json({ products: MOCK_RECENT_PRODUCTS }),
   ),
+
+  http.get(`${BASE}/api/wishlist`, () =>
+    HttpResponse.json({ products: mockWishlist }),
+  ),
+
+  // 찜 해제 — 목에서도 반영되도록 모듈 배열에서 제거
+  http.delete(`${BASE}/api/wishlist/:productId`, ({ params }) => {
+    const id = Number(params.productId);
+    mockWishlist = mockWishlist.filter((p) => p.productId !== id);
+    return new HttpResponse(null, { status: 204 });
+  }),
 ];
 
 // 인기상품 목 — categoryId로 카테고리별 필터 가능. home PopularProduct 계약 + categoryId
