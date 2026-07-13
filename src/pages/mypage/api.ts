@@ -1,5 +1,11 @@
 import { api } from "@/shared/api/client";
-import type { Order, RecentProduct, WishlistProduct } from "./types";
+import type {
+  Claim,
+  CreateReviewRequest,
+  Order,
+  RecentProduct,
+  WishlistProduct,
+} from "./types";
 
 export async function fetchOrders(): Promise<Order[]> {
   const { data } = await api.get<{ orders: Order[] }>("/api/mypage/orders");
@@ -22,4 +28,13 @@ export async function fetchWishlist(): Promise<WishlistProduct[]> {
 
 export async function removeWishlistItem(productId: number): Promise<void> {
   await api.delete(`/api/wishlist/${productId}`);
+}
+
+export async function fetchClaims(): Promise<Claim[]> {
+  const { data } = await api.get<{ claims: Claim[] }>("/api/mypage/claims");
+  return data.claims;
+}
+
+export async function createReview(body: CreateReviewRequest): Promise<void> {
+  await api.post("/api/reviews", body);
 }

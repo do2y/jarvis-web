@@ -3,6 +3,8 @@ import { AppHeader } from "@/shared/ui/AppHeader";
 import { ProfileHeader } from "./components/ProfileHeader";
 import { MyPageNav } from "./components/MyPageNav";
 import OrdersPage from "./OrdersPage";
+import ClaimsPage from "./ClaimsPage";
+import ReviewWritePage from "./ReviewWritePage";
 import RecentProductsPage from "./RecentProductsPage";
 import WishlistPage from "./WishlistPage";
 import ComingSoonPage from "./ComingSoonPage";
@@ -20,10 +22,8 @@ export default function MyPage() {
             <Routes>
               <Route index element={<Navigate to="orders" replace />} />
               <Route path="orders" element={<OrdersPage />} />
-              <Route
-                path="claims"
-                element={<ComingSoonPage title="취소·반품·교환" />}
-              />
+              <Route path="reviews/new" element={<ReviewWritePage />} />
+              <Route path="claims" element={<ClaimsPage />} />
               <Route path="recent" element={<RecentProductsPage />} />
               <Route path="wishlist" element={<WishlistPage />} />
               <Route

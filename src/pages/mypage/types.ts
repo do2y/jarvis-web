@@ -45,3 +45,35 @@ export interface WishlistProduct {
   price: number;
   wishedAt: string; // ISO 일시 — 최신순 정렬 기준
 }
+
+// 취소·반품·교환 신청 종류
+export type ClaimType =
+  | "CANCEL" // 취소 (배송 전)
+  | "RETURN" // 반품(환불)
+  | "EXCHANGE"; // 교환
+
+// 신청 처리 상태 (스크린샷: 처리중 / 완료)
+export type ClaimStatus =
+  | "REQUESTED" // 접수
+  | "PROCESSING" // 처리중
+  | "COMPLETED" // 완료
+  | "REJECTED"; // 반려
+
+export interface Claim {
+  claimId: string; // "CLM-20250520"
+  orderId: string; // 원 주문번호 "ORD-20250515"
+  productId: number;
+  productName: string;
+  type: ClaimType;
+  status: ClaimStatus;
+  reason: string; // 사유 표시값 "단순 변심"
+  requestedAt: string; // ISO 날짜 (YYYY-MM-DD) — 최신순 정렬 기준
+}
+
+// 후기 작성 요청 — 백엔드 POST /api/reviews 계약. 사진은 백엔드 붙을 때 필드 추가.
+export interface CreateReviewRequest {
+  orderId: string;
+  productId: number;
+  rating: number; // 1~5
+  content: string;
+}

@@ -183,6 +183,24 @@ export const handlers = [
     HttpResponse.json({ products: MOCK_RECENT_PRODUCTS }),
   ),
 
+  http.get(`${BASE}/api/mypage/claims`, () =>
+    HttpResponse.json({ claims: MOCK_CLAIMS }),
+  ),
+
+  // 후기 작성 — 목은 접수만 확인(사진 업로드는 백엔드 붙을 때). 성공 시 생성 결과 반환.
+  http.post(`${BASE}/api/reviews`, async ({ request }) => {
+    const body = (await request.json()) as {
+      orderId: string;
+      productId: number;
+      rating: number;
+      content: string;
+    };
+    return HttpResponse.json(
+      { reviewId: `REV-${body.productId}`, ...body },
+      { status: 201 },
+    );
+  }),
+
   http.get(`${BASE}/api/wishlist`, () =>
     HttpResponse.json({ products: mockWishlist }),
   ),
@@ -425,6 +443,41 @@ const MOCK_RECENT_PRODUCTS = [
     imageUrl: "https://picsum.photos/seed/recent-dot/500/500",
     price: 73000,
     viewedAt: "2025-07-07T16:22:00+09:00",
+  },
+];
+
+// 취소·반품·교환 목 — mypage/types.ts Claim 계약. requestedAt 내림차순(최신순).
+// 원 주문(MOCK_ORDERS)의 상품과 연결.
+const MOCK_CLAIMS = [
+  {
+    claimId: "CLM-20250520",
+    orderId: "ORD-20250515",
+    productId: 303,
+    productName: "메리노 울 터틀넥 니트 TSKN1801",
+    type: "RETURN",
+    status: "PROCESSING",
+    reason: "단순 변심",
+    requestedAt: "2025-05-20",
+  },
+  {
+    claimId: "CLM-20250503",
+    orderId: "ORD-20250428",
+    productId: 304,
+    productName: "오버사이즈 울 블렌드 코트 TSCT3301",
+    type: "EXCHANGE",
+    status: "COMPLETED",
+    reason: "사이즈 불량",
+    requestedAt: "2025-05-03",
+  },
+  {
+    claimId: "CLM-20250412",
+    orderId: "ORD-20250410",
+    productId: 305,
+    productName: "플리츠 미디 스커트 TSSK1402",
+    type: "CANCEL",
+    status: "COMPLETED",
+    reason: "주문 실수",
+    requestedAt: "2025-04-12",
   },
 ];
 
