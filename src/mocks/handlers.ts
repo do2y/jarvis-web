@@ -93,6 +93,76 @@ let mockAddresses = [
 ];
 let nextAddressSeq = 3;
 
+// 장바구니 목 — cart/types.ts CartItem 계약. let: 수량 변경·삭제가 갱신.
+// 핸들러가 참조하므로 배열 위에 선언.
+let mockCart = [
+  {
+    cartItemId: "CART-1",
+    productId: 301,
+    name: "스테어넥 벨티드 미디 원피스 TSOP1180",
+    brand: "더센트",
+    imageUrl: "https://picsum.photos/seed/cart-dress1/300/300",
+    price: 92000,
+    originalPrice: 230000,
+    options: { 컬러: "아이보리", 사이즈: "S" },
+    quantity: 1,
+  },
+  {
+    cartItemId: "CART-2",
+    productId: 306,
+    name: "오프숄더 시폰 미디 드레스 LB-D221",
+    brand: "르블랑",
+    imageUrl: "https://picsum.photos/seed/cart-dress2/300/300",
+    price: 89000,
+    originalPrice: 89000,
+    options: { 컬러: "블랙", 사이즈: "M" },
+    quantity: 1,
+  },
+  {
+    cartItemId: "CART-3",
+    productId: 303,
+    name: "메리노 울 터틀넥 니트 TSKN1801",
+    brand: "더센트",
+    imageUrl: "https://picsum.photos/seed/cart-knit/300/300",
+    price: 89000,
+    originalPrice: 112000,
+    options: { 컬러: "크림", 사이즈: "M" },
+    quantity: 2,
+  },
+];
+
+// 함께 구매 추천 목 — cart/types.ts CartRecommendation 계약.
+const MOCK_CART_RECOMMENDATIONS = [
+  {
+    productId: 401,
+    name: "골드 미니 클러치백",
+    brand: "르블랑",
+    imageUrl: "https://picsum.photos/seed/cart-bag/400/400",
+    price: 49000,
+  },
+  {
+    productId: 402,
+    name: "스틸레토 앵클 스트랩 힐",
+    brand: "슈에뜨",
+    imageUrl: "https://picsum.photos/seed/cart-heel/400/400",
+    price: 89000,
+  },
+  {
+    productId: 403,
+    name: "펄 드롭 이어링",
+    brand: "아뜨리에",
+    imageUrl: "https://picsum.photos/seed/cart-earring/400/400",
+    price: 28000,
+  },
+  {
+    productId: 404,
+    name: "캐시미어 머플러",
+    brand: "울프포드",
+    imageUrl: "https://picsum.photos/seed/cart-muffler/400/400",
+    price: 64000,
+  },
+];
+
 export const handlers = [
   http.post(`${BASE}/api/auth/login`, async ({ request }) => {
     const { email } = (await request.json()) as {
@@ -325,6 +395,30 @@ export const handlers = [
       { reviewId: `REV-${body.productId}`, ...body },
       { status: 201 },
     );
+  }),
+
+  // ── 장바구니 ──
+  http.get(`${BASE}/api/cart`, () =>
+    HttpResponse.json({ items: mockCart }),
+  ),
+
+  http.get(`${BASE}/api/cart/recommendations`, () =>
+    HttpResponse.json({ products: MOCK_CART_RECOMMENDATIONS }),
+  ),
+
+  http.patch(`${BASE}/api/cart/:cartItemId`, async ({ params, request }) => {
+    const id = String(params.cartItemId);
+    const { quantity } = (await request.json()) as { quantity: number };
+    mockCart = mockCart.map((it) =>
+      it.cartItemId === id ? { ...it, quantity } : it,
+    );
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete(`${BASE}/api/cart/:cartItemId`, ({ params }) => {
+    const id = String(params.cartItemId);
+    mockCart = mockCart.filter((it) => it.cartItemId !== id);
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.get(`${BASE}/api/wishlist`, () =>
