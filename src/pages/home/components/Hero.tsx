@@ -52,7 +52,7 @@ export function Hero() {
 
         {/* 입력 내용을 첫 메시지로 채팅 화면에 전달 */}
         <form
-          className="mt-15 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-sm"
+          className="mt-15 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-ring"
           onSubmit={(e) => {
             e.preventDefault();
             startChat(message);
@@ -71,7 +71,7 @@ export function Hero() {
           <button
             type="submit"
             aria-label="보내기"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-opacity hover:opacity-90"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition hover:opacity-90 active:scale-90"
           >
             <SendHorizontal className="size-4" />
           </button>
@@ -83,7 +83,7 @@ export function Hero() {
               <button
                 type="button"
                 onClick={() => startChat(chip)}
-                className="rounded-full border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-full border bg-background px-4 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-95"
               >
                 {chip}
               </button>

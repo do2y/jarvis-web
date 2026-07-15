@@ -34,7 +34,7 @@ export function CategoryGrid() {
               key={cat.categoryId}
               type="button"
               onClick={() => navigate(`/chat?categoryId=${cat.categoryId}`)}
-              className="flex flex-col items-center gap-2 rounded-sm border bg-background px-3 py-4 text-center shadow-sm transition-colors hover:bg-muted"
+              className="flex flex-col items-center gap-2 rounded-sm border bg-background px-3 py-4 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-muted hover:shadow-md active:translate-y-0 active:scale-[0.98]"
             >
               <span className="text-2xl" aria-hidden>
                 {cat.emoji}
