@@ -22,7 +22,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
   };
 
   return (
-    <article className="group flex flex-col">
+    <article className="group flex h-full flex-col">
       <div className="relative aspect-square overflow-hidden rounded-sm bg-muted">
         <button
           type="button"
@@ -54,7 +54,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
       <button
         type="button"
         onClick={goToDetail}
-        className="mt-3 flex flex-col text-left"
+        className="mt-3 flex flex-1 flex-col text-left"
       >
         <span className="text-xs text-muted-foreground">{product.brand}</span>
         <span className="mt-1 line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
@@ -67,7 +67,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
 
       <button
         type="button"
-        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors hover:bg-muted"
+        className="mt-3 inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors hover:bg-muted"
       >
         <ShoppingCart className="size-4" />
         장바구니 담기
