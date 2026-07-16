@@ -1,9 +1,8 @@
-import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { RefreshCcw } from "lucide-react";
 import { useClaims } from "./useClaims";
 import { ClaimCard } from "./components/ClaimCard";
+import { PageTitle, ErrorState, EmptyState } from "./components/PageState";
 
 function ClaimsSkeleton() {
   return (
@@ -30,42 +29,24 @@ export default function ClaimsPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold">취소·반품·교환</h2>
+      <PageTitle>취소·반품·교환</PageTitle>
 
       <div className="mt-5">
         {isPending ? (
           <ClaimsSkeleton />
         ) : isError ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              신청 내역을 불러오지 못했어요.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-10 rounded-full px-5",
-              )}
-            >
-              다시 시도
-            </button>
-          </div>
+          <ErrorState
+            message="신청 내역을 불러오지 못했어요."
+            onRetry={() => refetch()}
+          />
         ) : claims.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm font-medium">
-              취소·반품·교환 내역이 없어요
-            </p>
-            <p className="text-sm text-muted-foreground">
-              주문 내역에서 취소나 반품·교환을 신청할 수 있어요.
-            </p>
-            <Link
-              to="/mypage/orders"
-              className={cn(buttonVariants(), "mt-1 h-11 rounded-full px-6")}
-            >
-              주문 내역 보기
-            </Link>
-          </div>
+          <EmptyState
+            icon={RefreshCcw}
+            title="취소·반품·교환 내역이 없어요"
+            description="주문 내역에서 취소나 반품·교환을 신청할 수 있어요."
+            actionLabel="주문 내역 보기"
+            actionTo="/mypage/orders"
+          />
         ) : (
           <div className="flex flex-col gap-4">
             {claims.map((claim) => (

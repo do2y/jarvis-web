@@ -38,13 +38,13 @@ export const router = createBrowserRouter([
       { path: '/products/:productId', element: <ProductPage /> },
       { path: '/brands/:brandId', element: <BrandPage /> },
       { path: '/inquiry', element: <InquiryPage /> }, // 문의 챗봇: 게스트는 일반 안내만
+      { path: '/cart', element: <CartPage /> }, // 장바구니: 게스트도 담기·조회 가능(구매만 로그인)
+      { path: '/wishlist', element: <WishlistPage /> }, // 게스트는 로그인 유도 화면, 회원은 마이페이지 찜으로
 
       // ── 회원 전용 ──
       {
         element: <RequireAuth />,
         children: [
-          { path: '/cart', element: <CartPage /> },
-          { path: '/wishlist', element: <WishlistPage /> }, // 찜: 로그인 필요
           { path: '/checkout', element: <CheckoutPage /> },
           { path: '/checkout/complete', element: <OrderCompletePage /> },
           { path: '/mypage/*', element: <MyPage /> },

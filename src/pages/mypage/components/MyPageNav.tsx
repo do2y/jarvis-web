@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MENU = [
@@ -13,21 +14,34 @@ const MENU = [
 export function MyPageNav() {
   return (
     <nav>
-      <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:pb-0">
+      {/* 모바일: 가로 스크롤 필 / 데스크탑: 세로 리스트 (Apple 설정앱 스타일 셀) */}
+      <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0">
         {MENU.map((item) => (
-          <li key={item.to} className="shrink-0">
+          <li key={item.to} className="shrink-0 lg:shrink">
             <NavLink
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "flex h-11 items-center whitespace-nowrap rounded-sm px-4 text-sm font-medium transition-colors",
+                  "group flex h-11 items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-all duration-200 active:scale-[0.98] lg:justify-between lg:rounded-sm lg:px-3.5",
                   isActive
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    ? "bg-primary text-primary-foreground lg:bg-muted lg:text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )
               }
             >
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <span className="tracking-tight">{item.label}</span>
+                  <ChevronRight
+                    className={cn(
+                      "hidden size-4 shrink-0 transition-colors lg:block",
+                      isActive
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground/40 group-hover:text-muted-foreground",
+                    )}
+                  />
+                </>
+              )}
             </NavLink>
           </li>
         ))}

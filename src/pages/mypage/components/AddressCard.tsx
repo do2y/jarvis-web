@@ -17,9 +17,9 @@ export function AddressCard({
     <article className="rounded-sm border bg-background p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="font-semibold">{address.label}</span>
+          <span className="font-semibold tracking-tight">{address.label}</span>
           {address.isDefault && (
-            <span className="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-xs font-medium text-muted-foreground">
+            <span className="inline-flex h-6 items-center rounded-full bg-primary px-2.5 text-xs font-medium text-primary-foreground">
               기본
             </span>
           )}

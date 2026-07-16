@@ -6,12 +6,12 @@ export function ProfileHeader() {
   const initial = nickname.charAt(0);
 
   return (
-    <div className="flex items-center gap-3 rounded-sm bg-muted/50 px-3 py-3 lg:px-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-primary-foreground">
+    <div className="flex items-center gap-3.5 rounded-sm bg-muted/40 px-4 py-4">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
         {initial}
       </span>
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-semibold leading-tight">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-semibold leading-tight tracking-tight">
           {nickname}
         </span>
         <span className="truncate text-xs text-muted-foreground">

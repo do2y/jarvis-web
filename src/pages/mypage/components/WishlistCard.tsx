@@ -23,7 +23,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
 
   return (
     <article className="group flex h-full flex-col">
-      <div className="relative aspect-square overflow-hidden rounded-sm bg-muted">
+      <div className="relative aspect-square overflow-hidden rounded-sm bg-muted ring-1 ring-black/5">
         <button
           type="button"
           onClick={goToDetail}
@@ -37,8 +37,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
             className="size-full object-cover transition-transform group-hover:scale-105"
           />
         </button>
-        {/* 찜 해제 — 자동 재시도 없음, 낙관적 제거 후 실패 시 롤백(useRemoveWishlistItem) */}
-        {/* 시안: 배경 원 없이 이미지 우하단에 큰 솔리드 하트만 얹음 */}
+
         <button
           type="button"
           onClick={() => remove.mutate(product.productId)}
@@ -67,7 +66,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
 
       <button
         type="button"
-        className="mt-3 inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border text-sm font-medium transition-colors hover:bg-muted"
+        className="mt-3 inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border text-sm font-medium transition-all hover:bg-muted active:scale-[0.98]"
       >
         <ShoppingCart className="size-4" />
         장바구니 담기

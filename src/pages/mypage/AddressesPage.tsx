@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useAddresses, useAddressMutations } from "./useAddresses";
 import { AddressCard } from "./components/AddressCard";
 import { AddressFormModal } from "./components/AddressFormModal";
+import { PageTitle, ErrorState } from "./components/PageState";
 import type { Address, AddressInput } from "./types";
 
 function AddressesSkeleton() {
@@ -61,27 +60,16 @@ export default function AddressesPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold">배송지 관리</h2>
+      <PageTitle>배송지 관리</PageTitle>
 
       <div className="mt-5">
         {isPending ? (
           <AddressesSkeleton />
         ) : isError ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              배송지를 불러오지 못했어요.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-10 rounded-full px-5",
-              )}
-            >
-              다시 시도
-            </button>
-          </div>
+          <ErrorState
+            message="배송지를 불러오지 못했어요."
+            onRetry={() => refetch()}
+          />
         ) : (
           <div className="flex flex-col gap-4">
             {addresses.map((address) => (
@@ -99,7 +87,7 @@ export default function AddressesPage() {
             <button
               type="button"
               onClick={openAdd}
-              className="flex h-14 items-center justify-center gap-1.5 rounded-sm border border-dashed text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              className="flex h-14 items-center justify-center gap-1.5 rounded-sm border border-dashed text-sm font-medium text-muted-foreground transition-all hover:border-foreground/30 hover:bg-muted/40 hover:text-foreground active:scale-[0.99]"
             >
               <Plus className="size-4" />
               배송지 추가

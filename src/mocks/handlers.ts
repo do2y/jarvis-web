@@ -106,7 +106,8 @@ let mockCart = [
     productId: 301,
     name: "가먼트 다잉 오버핏 반팔 티셔츠 TSOP1180",
     brand: "더센트",
-    imageUrl: "https://image.msscdn.net/thumbnails/images/goods_img/20260415/6317871/6317871_17811631352969_big.jpg?w=1200",
+    imageUrl:
+      "https://image.msscdn.net/thumbnails/images/goods_img/20260415/6317871/6317871_17811631352969_big.jpg?w=1200",
     price: 92000,
     originalPrice: 230000,
     options: { 컬러: "차콜", 사이즈: "L" },
@@ -117,7 +118,8 @@ let mockCart = [
     productId: 306,
     name: "소프트 코튼 크루넥 반팔 티셔츠 LB-D221",
     brand: "르블랑",
-    imageUrl: "https://image.msscdn.net/thumbnails/images/goods_img/20250722/5262448/5262448_17561780734495_big.jpg?w=1200",
+    imageUrl:
+      "https://image.msscdn.net/thumbnails/images/goods_img/20250722/5262448/5262448_17561780734495_big.jpg?w=1200",
     price: 89000,
     originalPrice: 89000,
     options: { 컬러: "그레이", 사이즈: "M" },
@@ -128,7 +130,8 @@ let mockCart = [
     productId: 303,
     name: "헤비웨이트 오버핏 티셔츠 TSKN1801",
     brand: "더센트",
-    imageUrl: "https://image.msscdn.net/thumbnails/images/goods_img/20260618/6694104/6694104_17817540562281_big.jpg?w=1200",
+    imageUrl:
+      "https://image.msscdn.net/thumbnails/images/goods_img/20260618/6694104/6694104_17817540562281_big.jpg?w=1200",
     price: 89000,
     originalPrice: 112000,
     options: { 컬러: "카키", 사이즈: "L" },

@@ -1,5 +1,12 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Heart, MessageSquare, ShoppingCart } from "lucide-react";
+import {
+  ChevronDown,
+  Heart,
+  LogOut,
+  MessageSquare,
+  ShoppingCart,
+  User,
+} from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,12 +16,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/shared/stores/authStore";
+import { useAuthStore, type UserRole } from "@/shared/stores/authStore";
 
 interface AppHeaderProps {
   showMenu?: boolean;
   leftSlot?: React.ReactNode;
 }
+
+// 역할 한글 라벨 — 드롭다운 계정 헤더의 배지에 사용
+const ROLE_LABEL: Record<UserRole, string> = {
+  MEMBER: "일반 회원",
+  SELLER: "판매자",
+  ADMIN: "관리자",
+};
 
 // 헤더 아이콘 링크 — 44px 터치 타깃, 활성 경로 강조, title 툴팁 + aria-label 병행.
 // active 판단은 NavLink의 isActive에 위임(경로 일치 시 배경·색으로 현재 위치 표시).
@@ -89,38 +103,63 @@ export function AppHeader({ showMenu = true, leftSlot }: AppHeaderProps) {
               </NavIconLink>
             )}
 
-            {/* 찜·장바구니는 로그인 필요(RequireAuth) → 게스트에겐 숨겨 헛클릭 방지 */}
-            {user && (
-              <>
-                <NavIconLink to="/wishlist" label="찜 목록">
-                  <Heart className="size-5" />
-                </NavIconLink>
-                <NavIconLink to="/cart" label="장바구니">
-                  <ShoppingCart className="size-5" />
-                </NavIconLink>
-              </>
-            )}
+            {/* 찜·장바구니: 항상 노출. 게스트는 각 페이지에서 로그인 유도/담기 처리 */}
+            <NavIconLink to="/wishlist" label="찜 목록">
+              <Heart className="size-5" />
+            </NavIconLink>
+            <NavIconLink to="/cart" label="장바구니">
+              <ShoppingCart className="size-5" />
+            </NavIconLink>
 
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={cn(
                     buttonVariants({ variant: "ghost" }),
-                    "ml-1 h-11 gap-1 rounded-full px-3 text-sm font-medium",
+                    "ml-1 h-11 gap-1.5 rounded-full px-3 text-sm font-medium",
                   )}
                 >
                   {user.nickname}님
-                  <ChevronDown className="size-4 text-muted-foreground" />
+                  {/* 열림 상태를 chevron 회전으로 피드백 */}
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform group-aria-expanded/button:rotate-180" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem render={<Link to="/mypage" />}>
+                {/* 페이지가 각진 카드(rounded-sm)로 가득 → 메뉴는 더 둥글고(rounded-xl)
+                    그림자 깊은(shadow-lg) 떠 있는 층위로 구분해 '카드 하나 더'처럼 안 보이게(§12).
+                    트리거 폭 고정(w-anchor-width) 해제, 오른쪽 끝 정렬 */}
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={6}
+                  className="w-56 rounded-xl p-1.5 shadow-lg"
+                >
+                  {/* 계정 헤더 — 배경·박스 없이 가볍게. "지금 누구로 로그인했는지" 재확인 */}
+                  <div className="flex items-center gap-2.5 px-1.5 py-1.5">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                      {user.nickname.charAt(0)}
+                    </span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold leading-tight">
+                        {user.nickname}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {ROLE_LABEL[user.role]}
+                      </span>
+                    </div>
+                  </div>
+                  {/* 구분선 1개만 — 정체성 ↔ 메뉴. 항목끼리는 이어 붙여 칸 분할감 줄임 */}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    render={<Link to="/mypage" />}
+                    className="rounded-lg py-2"
+                  >
+                    <User />
                     마이페이지
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={handleLogout}
+                    className="rounded-lg py-2"
                   >
+                    <LogOut />
                     로그아웃
                   </DropdownMenuItem>
                 </DropdownMenuContent>

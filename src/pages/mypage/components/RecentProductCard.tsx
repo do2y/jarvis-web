@@ -7,8 +7,6 @@ export function RecentProductCard({ product }: { product: RecentProduct }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // 캐시 승계: 카드 데이터를 상세 캐시에 시딩해 상세 진입 시 즉시 렌더.
-  // 최근 본 상품 계약은 카드 수준 필드만 담아 부분 시딩 → 부족분은 상세 API가 채움.
   const goToDetail = () => {
     queryClient.setQueryData(["products", product.productId], {
       productId: product.productId,
@@ -27,7 +25,7 @@ export function RecentProductCard({ product }: { product: RecentProduct }) {
       aria-label={`${product.name} 상세 보기`}
       className="group flex flex-col text-left"
     >
-      <div className="aspect-square overflow-hidden rounded-sm bg-muted">
+      <div className="aspect-square overflow-hidden rounded-sm bg-muted ring-1 ring-black/5">
         <img
           src={product.imageUrl}
           alt={product.name}
