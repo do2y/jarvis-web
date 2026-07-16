@@ -2,11 +2,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useOrder } from "./useOrders";
 import { formatPrice } from "./utils/formatPrice";
 import { OrderStatusBadge } from "./components/OrderStatusBadge";
+import { PageTitle, ErrorState } from "./components/PageState";
 import type { OrderDetail, OrderItem } from "./types";
 
 // 후기 작성 가능 상태(배송완료/구매확정) — OrderCard와 동일 기준.
@@ -48,7 +48,7 @@ function DetailItem({
         <img
           src={item.imageUrl}
           alt=""
-          className="size-20 rounded-sm bg-muted object-cover"
+          className="size-20 rounded-sm bg-muted object-cover ring-1 ring-black/5 transition-transform hover:scale-[1.03]"
         />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -68,7 +68,7 @@ function DetailItem({
         <button
           type="button"
           onClick={() => onReview(item)}
-          className="h-9 shrink-0 self-center rounded-full border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          className="h-9 shrink-0 self-center rounded-full border px-4 text-sm font-medium transition-all hover:bg-muted active:scale-[0.97]"
         >
           후기 작성
         </button>
@@ -129,32 +129,21 @@ export default function OrderDetailPage() {
         <Link
           to="/mypage/orders"
           aria-label="주문 내역으로"
-          className="-ml-2 flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="-ml-2 flex size-9 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-95"
         >
           <ChevronLeft className="size-5" />
         </Link>
-        <h2 className="text-lg font-bold">주문 상세</h2>
+        <PageTitle>주문 상세</PageTitle>
       </div>
 
       <div className="mt-5">
         {isPending ? (
           <DetailSkeleton />
         ) : isError ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              주문 정보를 불러오지 못했어요.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-10 rounded-full px-5",
-              )}
-            >
-              다시 시도
-            </button>
-          </div>
+          <ErrorState
+            message="주문 정보를 불러오지 못했어요."
+            onRetry={() => refetch()}
+          />
         ) : (
           <div className="flex flex-col gap-4">
             {/* 주문 요약 */}

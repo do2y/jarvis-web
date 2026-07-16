@@ -6,7 +6,6 @@ import { InquiryStatusBadge } from "./InquiryStatusBadge";
 
 export function InquiryCard({ inquiry }: { inquiry: Inquiry }) {
   const [open, setOpen] = useState(false);
-  // 답변완료 문의만 펼쳐서 답변 확인 (읽기 전용). 처리중은 정적 카드.
   const expandable = inquiry.status === "ANSWERED";
 
   const header = (
@@ -30,13 +29,18 @@ export function InquiryCard({ inquiry }: { inquiry: Inquiry }) {
   );
 
   return (
-    <article className="rounded-sm border bg-background">
+    <article
+      className={cn(
+        "overflow-hidden rounded-sm border bg-background",
+        expandable && "transition-shadow duration-200 hover:shadow-sm",
+      )}
+    >
       {expandable ? (
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex w-full items-center px-5 py-4 text-left"
+          className="flex w-full items-center px-5 py-4 text-left transition-colors hover:bg-muted/30"
         >
           {header}
         </button>
@@ -44,24 +48,39 @@ export function InquiryCard({ inquiry }: { inquiry: Inquiry }) {
         <div className="px-5 py-4">{header}</div>
       )}
 
-      {expandable && open && (
-        <div className="space-y-4 border-t px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground">문의</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm">
-              {inquiry.content}
-            </p>
-          </div>
-          <div className="rounded-sm bg-muted/50 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground">답변</p>
-              {inquiry.answeredAt && (
-                <span className="text-xs text-muted-foreground">
-                  {inquiry.answeredAt.replace(/-/g, ".")}
-                </span>
-              )}
+      {expandable && (
+        <div
+          className={cn(
+            "grid border-t transition-[grid-template-rows] duration-300 ease-out",
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr] border-t-transparent",
+          )}
+        >
+          <div className="overflow-hidden">
+            <div className="space-y-4 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  문의
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm">
+                  {inquiry.content}
+                </p>
+              </div>
+              <div className="rounded-sm bg-muted/50 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    답변
+                  </p>
+                  {inquiry.answeredAt && (
+                    <span className="text-xs text-muted-foreground">
+                      {inquiry.answeredAt.replace(/-/g, ".")}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-sm">
+                  {inquiry.answer}
+                </p>
+              </div>
             </div>
-            <p className="mt-1 whitespace-pre-wrap text-sm">{inquiry.answer}</p>
           </div>
         </div>
       )}

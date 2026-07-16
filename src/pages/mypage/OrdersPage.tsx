@@ -1,9 +1,8 @@
-import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { PackageOpen } from "lucide-react";
 import { useOrders } from "./useOrders";
 import { OrderCard } from "./components/OrderCard";
+import { PageTitle, ErrorState, EmptyState } from "./components/PageState";
 
 function OrdersSkeleton() {
   return (
@@ -33,40 +32,24 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold">주문 내역</h2>
+      <PageTitle>주문 내역</PageTitle>
 
       <div className="mt-5">
         {isPending ? (
           <OrdersSkeleton />
         ) : isError ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              주문 내역을 불러오지 못했어요.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-10 rounded-full px-5",
-              )}
-            >
-              다시 시도
-            </button>
-          </div>
+          <ErrorState
+            message="주문 내역을 불러오지 못했어요."
+            onRetry={() => refetch()}
+          />
         ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm font-medium">아직 주문 내역이 없어요</p>
-            <p className="text-sm text-muted-foreground">
-              마음에 드는 상품을 찾아 첫 주문을 시작해보세요.
-            </p>
-            <Link
-              to="/"
-              className={cn(buttonVariants(), "mt-1 h-11 rounded-full px-6")}
-            >
-              쇼핑하러 가기
-            </Link>
-          </div>
+          <EmptyState
+            icon={PackageOpen}
+            title="아직 주문 내역이 없어요"
+            description="마음에 드는 상품을 찾아 첫 주문을 시작해보세요."
+            actionLabel="쇼핑하러 가기"
+            actionTo="/"
+          />
         ) : (
           <div className="flex flex-col gap-5">
             {orders.map((order) => (

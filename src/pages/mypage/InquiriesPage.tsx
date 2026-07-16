@@ -1,9 +1,8 @@
-import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { MessageSquareText } from "lucide-react";
 import { useInquiries } from "./useInquiries";
 import { InquiryCard } from "./components/InquiryCard";
+import { PageTitle, ErrorState, EmptyState } from "./components/PageState";
 
 function InquiriesSkeleton() {
   return (
@@ -27,40 +26,24 @@ export default function InquiriesPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold">문의 내역</h2>
+      <PageTitle>문의 내역</PageTitle>
 
       <div className="mt-5">
         {isPending ? (
           <InquiriesSkeleton />
         ) : isError ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              문의 내역을 불러오지 못했어요.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-10 rounded-full px-5",
-              )}
-            >
-              다시 시도
-            </button>
-          </div>
+          <ErrorState
+            message="문의 내역을 불러오지 못했어요."
+            onRetry={() => refetch()}
+          />
         ) : inquiries.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-sm border border-dashed py-16 text-center">
-            <p className="text-sm font-medium">문의 내역이 없어요</p>
-            <p className="text-sm text-muted-foreground">
-              문의 챗봇으로 궁금한 점을 남기면 여기에서 확인할 수 있어요.
-            </p>
-            <Link
-              to="/chat"
-              className={cn(buttonVariants(), "mt-1 h-11 rounded-full px-6")}
-            >
-              문의하러 가기
-            </Link>
-          </div>
+          <EmptyState
+            icon={MessageSquareText}
+            title="문의 내역이 없어요"
+            description="문의 챗봇으로 궁금한 점을 남기면 여기에서 확인할 수 있어요."
+            actionLabel="문의하러 가기"
+            actionTo="/chat"
+          />
         ) : (
           <div className="flex flex-col gap-4">
             {inquiries.map((inquiry) => (

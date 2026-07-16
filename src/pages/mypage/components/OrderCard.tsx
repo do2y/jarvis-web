@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "../utils/formatPrice";
 import type { ClaimType, Order, OrderItem } from "../types";
@@ -22,7 +23,7 @@ type ClaimAction = Extract<ClaimType, "RETURN" | "EXCHANGE">;
 // 액션 버튼 공통 스타일 (칩 형태).
 const actionButtonClass = cn(
   "inline-flex h-9 items-center rounded-full border px-4 text-sm font-medium",
-  "transition-colors hover:bg-muted",
+  "transition-all hover:bg-muted active:scale-[0.97]",
 );
 
 function ItemRow({ item }: { item: OrderItem }) {
@@ -31,7 +32,7 @@ function ItemRow({ item }: { item: OrderItem }) {
       <img
         src={item.imageUrl}
         alt=""
-        className="size-16 shrink-0 rounded-sm bg-muted object-cover sm:size-20"
+        className="size-16 shrink-0 rounded-sm bg-muted object-cover ring-1 ring-black/5 sm:size-20"
       />
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-xs text-muted-foreground">{item.brand}</p>
@@ -72,9 +73,9 @@ export function OrderCard({ order }: { order: Order }) {
   };
 
   return (
-    <article className="rounded-sm border bg-background">
+    <article className="overflow-hidden rounded-sm border bg-background">
       {/* 헤더: 상태 + 주문일 + 주문번호 / 우측 주문 상세 */}
-      <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <OrderStatusBadge status={order.status} />
           <span className="truncate text-sm text-muted-foreground">
@@ -83,9 +84,10 @@ export function OrderCard({ order }: { order: Order }) {
         </div>
         <Link
           to={`/mypage/orders/${order.orderId}`}
-          className="shrink-0 text-sm text-muted-foreground hover:text-foreground"
+          className="flex shrink-0 items-center gap-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           주문 상세
+          <ChevronRight className="size-4" />
         </Link>
       </div>
 
