@@ -9,14 +9,14 @@ export function ProductCard({ product }: { product: PopularProduct }) {
     // TODO: 클릭 시 상품 상세로 이동 + 카드 데이터를 setQueryData(['products', id])로 시딩
     <button
       type="button"
-      className="group flex flex-col overflow-hidden rounded-sm border bg-background text-left shadow-sm transition-colors hover:bg-muted/40"
+      className="group flex flex-col overflow-hidden rounded-sm border bg-background text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md active:translate-y-0 active:scale-[0.99]"
     >
       <div className="aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={product.imageUrl}
           alt={product.name}
           loading="lazy"
-          className="size-full object-cover transition-transform group-hover:scale-105"
+          className="size-full object-cover transition-transform duration-300 will-change-transform group-hover:scale-105"
         />
       </div>
 

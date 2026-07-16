@@ -16,10 +16,11 @@ export default function MyPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader />
       <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-20 sm:p-6">
-        <ProfileHeader />
-
-        <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:gap-10">
-          <MyPageNav />
+        <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
+          <div className="flex flex-col gap-4 lg:w-48 lg:shrink-0">
+            <ProfileHeader />
+            <MyPageNav />
+          </div>
           <div className="min-w-0 flex-1">
             <Routes>
               <Route index element={<Navigate to="orders" replace />} />
@@ -31,7 +32,6 @@ export default function MyPage() {
               <Route path="wishlist" element={<WishlistPage />} />
               <Route path="addresses" element={<AddressesPage />} />
               <Route path="inquiries" element={<InquiriesPage />} />
-              {/* 알 수 없는 하위 경로 → 주문 내역으로 */}
               <Route path="*" element={<Navigate to="orders" replace />} />
             </Routes>
           </div>
