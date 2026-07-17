@@ -1,16 +1,18 @@
 import { MessagesSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ProductGroup } from "@/shared/types/chat";
+import type { ChatResult } from "@/shared/types/chat";
 import { ChatProductCard } from "./ChatProductCard";
 
 interface ProductPanelProps {
-  groups: ProductGroup[];
+  results: ChatResult[];
   isStreaming: boolean;
 }
 
 const GRID = "grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3";
 
-export function ProductPanel({ groups, isStreaming }: ProductPanelProps) {
+export function ProductPanel({ results, isStreaming }: ProductPanelProps) {
+  // SHOPPING 채널은 상품 결과만 표시한다(다른 kind는 이 채널에 오지 않음)
+  const groups = results.flatMap((r) => (r.kind === "products" ? r.groups : []));
   const isEmpty = groups.length === 0;
 
   if (isEmpty && isStreaming) {

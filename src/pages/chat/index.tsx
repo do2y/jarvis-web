@@ -1,23 +1,32 @@
-import { useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
+import { ChatLayout } from "@/shared/chat/ChatLayout";
+import { useChatStore } from "@/shared/chat/store";
+import { useChat } from "@/shared/chat/useChat";
 import { AppHeader } from "@/shared/ui/AppHeader";
 import { useCategories } from "@/pages/home/useHomeData";
 import { fetchPopularAsCards } from "./api";
-import { useChatStore } from "./store";
-import { useChat } from "./useChat";
-import { MessageList } from "./components/MessageList";
-import { ChatInput } from "./components/ChatInput";
 import { ConditionChips } from "./components/ConditionChips";
 import { ProductPanel } from "./components/ProductPanel";
 
 export default function ChatPage() {
   const [params, setParams] = useSearchParams();
-  const { send, retry, startNewChat, isStreaming } = useChat();
-  const { messages, productGroups, setProductGroups, conditions } =
-    useChatStore();
-  const hasProducts = productGroups.length > 0;
+  const queryClient = useQueryClient();
+
+  const { send, retry, startNewChat, isStreaming } = useChat({
+    channel: "SHOPPING",
+    // 챗봇 장바구니 담기 → 헤더 뱃지 전역 동기화 (CLAUDE.md)
+    onAction: (action) => {
+      if (action.type === "CART_ADDED") {
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+      }
+    },
+  });
+
+  const { messages, results, setResults, conditions } = useChatStore();
+  const hasResults = results.length > 0;
 
   const q = params.get("q");
   const categoryIdParam = params.get("categoryId");
@@ -40,19 +49,18 @@ export default function ChatPage() {
     : "지금 인기 상품";
 
   // 대화 시작 전(메시지 없음)에는 인기상품을 표시.
-  // hasProducts에 의존해야 "새 대화"로 패널이 비워졌을 때도 다시 시딩된다
+  // hasResults에 의존해야 "새 대화"로 패널이 비워졌을 때도 다시 시딩된다
   // (messages.length는 새 대화 전후 모두 0이라 deps가 변하지 않음).
   useEffect(() => {
-    if (messages.length === 0 && !hasProducts && popularCards?.length) {
-      setProductGroups([{ title: popularTitle, items: popularCards }]);
+    if (messages.length === 0 && !hasResults && popularCards?.length) {
+      setResults([
+        {
+          kind: "products",
+          groups: [{ title: popularTitle, items: popularCards }],
+        },
+      ]);
     }
-  }, [
-    messages.length,
-    hasProducts,
-    popularCards,
-    popularTitle,
-    setProductGroups,
-  ]);
+  }, [messages.length, hasResults, popularCards, popularTitle, setResults]);
 
   // 홈에서 넘어온 첫 메시지(?q=)는 "새 질문" → 기존 대화 초기화 후 시작.
   useEffect(() => {
@@ -65,49 +73,28 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  // 새 메시지·스트리밍 시 대화 영역 하단으로 스크롤
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, isStreaming]);
-
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <AppHeader
-        leftSlot={
-          <button
-            type="button"
-            onClick={startNewChat}
-            className="flex items-center gap-1 border-l pl-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-          >
-            <Plus className="size-4" />새 대화
-          </button>
-        }
-      />
-
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* 좌측: 대화 */}
-        <div className="flex min-h-0 flex-col border-b lg:w-[420px] lg:shrink-0 lg:border-b-0 lg:border-r">
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-            <MessageList
-              messages={messages}
-              isStreaming={isStreaming}
-              onRetry={retry}
-            />
-          </div>
-
-          <div className="flex flex-col gap-3 border-t p-4">
-            {/* AI가 추출한 조건 표시 (표시 전용). 조건 완화는 suggestions가 담당 */}
-            <ConditionChips conditions={conditions} />
-            <ChatInput onSend={send} disabled={isStreaming} />
-          </div>
-        </div>
-
-        {/* 우측: 상품 */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30">
-          <ProductPanel groups={productGroups} isStreaming={isStreaming} />
-        </div>
-      </div>
-    </div>
+    <ChatLayout
+      onSend={send}
+      onRetry={retry}
+      isStreaming={isStreaming}
+      /* "새 대화"는 헤더 로고 옆에 — 대화 영역을 차지하지 않게(기존 배치 유지) */
+      header={
+        <AppHeader
+          leftSlot={
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="flex items-center gap-1 border-l pl-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+            >
+              <Plus className="size-4" />새 대화
+            </button>
+          }
+        />
+      }
+      /* AI가 추출한 조건 표시 (표시 전용). 조건 완화는 suggestions가 담당 */
+      aboveInput={<ConditionChips conditions={conditions} />}
+      resultPanel={<ProductPanel results={results} isStreaming={isStreaming} />}
+    />
   );
 }

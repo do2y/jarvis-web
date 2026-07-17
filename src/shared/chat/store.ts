@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { ProductGroup } from "@/shared/types/chat";
+import type { ChatAction, ChatResult } from "@/shared/types/chat";
 
 // 현재 챗봇 대화 상태 — persist 안 함(새로고침 소실이 의도된 동작, CLAUDE.md)
+// SHOPPING·CS·SELLER가 같은 스토어를 쓴다. 채널별로 다른 건 results 항목의 kind뿐.
 
 export interface ChatMessage {
   id: string;
@@ -13,7 +14,7 @@ export interface ChatMessage {
 interface ChatState {
   sessionId: string | null;
   messages: ChatMessage[];
-  productGroups: ProductGroup[]; // 최신 응답의 상품 카드(그룹)
+  results: ChatResult[]; // 최신 응답의 결과 카드(상품·지표·차트·diff…)
   conditions: string[]; // 제거 가능 조건 칩
   isStreaming: boolean;
 
@@ -22,7 +23,10 @@ interface ChatState {
   appendToLastAssistant: (text: string) => void; // token 이벤트 누적
   failLastAssistant: (message: string) => void; // 마지막 assistant 말풍선을 에러 상태로
   dropLastExchange: () => string | null; // 실패한 (user, assistant) 쌍 제거하고 user 텍스트 반환
-  setProductGroups: (groups: ProductGroup[]) => void;
+  setResults: (results: ChatResult[]) => void;
+  addResult: (result: ChatResult) => void;
+  settleProductDiff: (draftId: string, action: ChatAction) => void;
+  dropProductDiff: (draftId: string) => void;
   setConditions: (items: string[]) => void;
   setStreaming: (v: boolean) => void;
   reset: () => void; // 새 대화
@@ -31,7 +35,7 @@ interface ChatState {
 const initial = {
   sessionId: null,
   messages: [],
-  productGroups: [],
+  results: [],
   conditions: [],
   isStreaming: false,
 };
@@ -71,7 +75,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages });
     return userText;
   },
-  setProductGroups: (productGroups) => set({ productGroups }),
+  setResults: (results) => set({ results }),
+  addResult: (result) => set((s) => ({ results: [...s.results, result] })),
+  // 수정 확인/실패 결과가 오면 해당 diff 카드를 처리 완료 상태로 잠근다
+  // (이미 확정된 수정에 확인 버튼이 계속 남아 중복 요청되는 것을 막음)
+  settleProductDiff: (draftId, action) =>
+    set((s) => ({
+      results: s.results.map((r) =>
+        r.kind === "productDiff" && r.diff.draftId === draftId
+          ? { ...r, settled: action }
+          : r,
+      ),
+    })),
+  // 사용자가 수정을 취소하면 실패가 아니라 "없던 일" — 카드를 그냥 걷어낸다
+  dropProductDiff: (draftId) =>
+    set((s) => ({
+      results: s.results.filter(
+        (r) => !(r.kind === "productDiff" && r.diff.draftId === draftId),
+      ),
+    })),
   setConditions: (conditions) => set({ conditions }),
   setStreaming: (isStreaming) => set({ isStreaming }),
   reset: () => set({ ...initial }),
