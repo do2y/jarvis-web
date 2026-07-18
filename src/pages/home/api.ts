@@ -17,3 +17,13 @@ export async function fetchPopularProducts(
   );
   return data.items;
 }
+
+// 개인화 추천 (P-5) — 로그인 필요. 카드 형식은 P-4와 동일해 PopularProduct 재사용.
+// FastAPI 실패·신규 회원(프로필 없음)은 백엔드가 인기상품으로 대체해 항상 200 + items를
+// 주므로 fallback 분기가 없다. 401만 실패이고 그건 client 인터셉터가 처리.
+export async function fetchRecommendedProducts(): Promise<PopularProduct[]> {
+  const { data } = await api.get<{ items: PopularProduct[] }>(
+    "/api/products/recommended",
+  );
+  return data.items;
+}
