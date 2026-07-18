@@ -71,8 +71,16 @@ export default function CartPage() {
     );
   };
 
-  const removeSelected = () => {
-    selectedItems.forEach((it) => remove.mutate(it.cartItemId));
+  // bulk 삭제 API가 없어 하나씩 호출한다(스펙: FE 반복 호출).
+  // 동시에 쏘면 각 낙관적 반영이 같은 스냅샷을 기준으로 잡혀 서로를 덮어쓰므로 순차 실행.
+  const removeSelected = async () => {
+    for (const it of selectedItems) {
+      try {
+        await remove.mutateAsync(it.cartItemId);
+      } catch {
+        // 한 건이 실패해도(이미 삭제됨 등) 나머지는 계속 시도. 사유는 errorMessage로 노출됨.
+      }
+    }
   };
 
   // 전체 선택이면 서버 계산 합계를 그대로 쓴다(합계의 진실은 서버).
@@ -175,10 +183,11 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={removeSelected}
-                  disabled={selectedItems.length === 0}
+                  // 순차 삭제 중 재클릭하면 같은 항목에 중복 요청이 나가므로 잠근다
+                  disabled={selectedItems.length === 0 || remove.isPending}
                   className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-40"
                 >
-                  선택 삭제
+                  {remove.isPending ? "삭제 중…" : "선택 삭제"}
                 </button>
               </div>
 
