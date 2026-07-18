@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ProductCard } from "@/shared/types/chat";
-import { fetchProductDetail } from "./api";
+import { fetchProductDetail, fetchProductReviews } from "./api";
+import type { ReviewSort } from "./types";
 
 const FIVE_MIN = 5 * 60 * 1000;
 
@@ -12,6 +13,22 @@ export function useProductDetail(id: number) {
   return useQuery({
     queryKey: ["products", id, "detail"],
     queryFn: () => fetchProductDetail(id),
+    enabled: Number.isFinite(id),
+    staleTime: FIVE_MIN,
+  });
+}
+
+// 상품 후기 — 상세와 함께 갱신되면 되므로 staleTime 5분.
+// page/sort가 키에 들어가 페이지 전환 시 각각 캐시된다.
+export function useProductReviews(
+  id: number,
+  params: { page?: number; size?: number; sort?: ReviewSort } = {},
+) {
+  const { page = 0, size = 10, sort = "latest" } = params;
+
+  return useQuery({
+    queryKey: ["products", id, "reviews", { page, size, sort }],
+    queryFn: () => fetchProductReviews(id, { page, size, sort }),
     enabled: Number.isFinite(id),
     staleTime: FIVE_MIN,
   });

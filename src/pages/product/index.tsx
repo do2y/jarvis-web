@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Heart, Star } from "lucide-react";
 import { AppHeader } from "@/shared/ui/AppHeader";
@@ -12,7 +12,12 @@ import { SpecTable } from "./components/SpecTable";
 import { ReviewSummary } from "./components/ReviewSummary";
 import { RecommendRow } from "./components/RecommendRow";
 import { PLACEHOLDER_DETAIL } from "./placeholder";
-import { useProductDetail, useSeededProductCard } from "./useProduct";
+import {
+  useProductDetail,
+  useProductReviews,
+  useSeededProductCard,
+} from "./useProduct";
+import type { ReviewSort } from "./types";
 
 function formatPrice(v: number): string {
   return `${v.toLocaleString("ko-KR")}원`;
@@ -29,6 +34,12 @@ export default function ProductPage() {
   // 상세 API가 정본. 도착 전에는 카드 시딩 데이터(캐시 승계)로 즉시 렌더한다.
   const { data: detail, isError } = useProductDetail(id);
   const { data: seeded } = useSeededProductCard(id);
+
+  // 리뷰는 정렬만 전환(페이지네이션은 계약 확정 후). 첫 페이지 10개.
+  const [reviewSort, setReviewSort] = useState<ReviewSort>("latest");
+  const { data: reviewPage, isLoading: reviewsLoading } = useProductReviews(id, {
+    sort: reviewSort,
+  });
 
   // 상세·시딩 어느 쪽이든 렌더에 필요한 값만 뽑아 정규화(구조가 달라 여기서 흡수).
   const view = detail
@@ -209,9 +220,15 @@ export default function ProductPage() {
 
         <ReviewSummary
           average={view.rating}
-          total={view.reviewCount}
-          distribution={d.reviewDistribution}
-          reviews={d.reviews}
+          // 총 개수·분포는 리뷰 API 집계를 우선 사용(상세의 rating.count와 동일 소스)
+          total={reviewPage?.totalElements ?? view.reviewCount}
+          distribution={
+            reviewPage?.distribution ?? { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 }
+          }
+          reviews={reviewPage?.content ?? []}
+          sort={reviewSort}
+          onSortChange={setReviewSort}
+          isLoading={reviewsLoading}
         />
 
         <RecommendRow

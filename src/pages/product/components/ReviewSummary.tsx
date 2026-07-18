@@ -1,12 +1,19 @@
-import { ChevronRight, Star } from "lucide-react";
+import { Star } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type {
+  ProductReview,
+  ReviewDistribution,
+  ReviewSort,
+} from "../types";
 
-interface ReviewItem {
-  author: string;
-  rating: number;
-  option: string;
-  date: string;
-  content: string;
-  helpful: number;
+const SORTS: { value: ReviewSort; label: string }[] = [
+  { value: "latest", label: "최신순" },
+  { value: "rating", label: "평점순" },
+];
+
+// "2026-07-01T12:00:00" → "2026.07.01"
+function formatDate(iso: string): string {
+  return iso.slice(0, 10).replaceAll("-", ".");
 }
 
 // 별점 분포는 5→1 순, 각 단계 개수. 평균/총평가수는 상위에서 주입.
@@ -15,24 +22,45 @@ export function ReviewSummary({
   total,
   distribution,
   reviews,
+  sort,
+  onSortChange,
+  isLoading,
 }: {
   average: number;
   total: number;
-  distribution: Record<1 | 2 | 3 | 4 | 5, number>;
-  reviews: ReviewItem[];
+  distribution: ReviewDistribution;
+  reviews: ProductReview[];
+  sort: ReviewSort;
+  onSortChange: (sort: ReviewSort) => void;
+  isLoading?: boolean;
 }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">
-          리뷰 <span className="text-muted-foreground">{total.toLocaleString("ko-KR")}</span>
+          리뷰{" "}
+          <span className="text-muted-foreground">
+            {total.toLocaleString("ko-KR")}
+          </span>
         </h2>
-        <button
-          type="button"
-          className="flex items-center gap-0.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          최신순 <ChevronRight className="size-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {SORTS.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => onSortChange(s.value)}
+              aria-pressed={sort === s.value}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-sm transition-colors",
+                sort === s.value
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 평균 + 분포 바 */}
@@ -46,7 +74,7 @@ export function ReviewSummary({
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
-          {([5, 4, 3, 2, 1] as const).map((score) => {
+          {(["5", "4", "3", "2", "1"] as const).map((score) => {
             const count = distribution[score] ?? 0;
             const pct = total > 0 ? (count / total) * 100 : 0;
             return (
@@ -68,29 +96,34 @@ export function ReviewSummary({
       </div>
 
       {/* 리뷰 리스트 */}
-      <ul className="flex flex-col divide-y">
-        {reviews.map((r, i) => (
-          <li key={i} className="flex flex-col gap-2 py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Stars value={r.rating} size="sm" />
-                <span className="text-sm font-medium">{r.author}</span>
+      {isLoading ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          리뷰를 불러오는 중이에요.
+        </p>
+      ) : reviews.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          아직 등록된 리뷰가 없어요.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y">
+          {reviews.map((r) => (
+            <li key={r.reviewId} className="flex flex-col gap-2 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Stars value={r.rating} size="sm" />
+                  <span className="text-sm font-medium">
+                    {r.authorNickname}
+                  </span>
+                </div>
                 <span className="text-xs text-muted-foreground">
-                  {r.option} 구매
+                  {formatDate(r.createdAt)}
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground">{r.date}</span>
-            </div>
-            <p className="text-sm leading-relaxed">{r.content}</p>
-            <button
-              type="button"
-              className="w-fit rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-muted/70"
-            >
-              도움이 됐어요 {r.helpful}
-            </button>
-          </li>
-        ))}
-      </ul>
+              <p className="text-sm leading-relaxed">{r.content}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

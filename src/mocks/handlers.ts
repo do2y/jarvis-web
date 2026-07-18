@@ -155,6 +155,38 @@ let mockCart = [
   },
 ];
 
+// 상품 후기 목 — product/types.ts ProductReview 계약(P-3). status=VISIBLE만 내려온다는 전제.
+const MOCK_PRODUCT_REVIEWS = [
+  {
+    reviewId: 7,
+    rating: 5,
+    content: "재질이 좋고 마감도 깔끔해요. 사이즈는 평소대로 골랐습니다.",
+    authorNickname: "지영",
+    createdAt: "2026-07-01T12:00:00",
+  },
+  {
+    reviewId: 6,
+    rating: 4,
+    content: "색상은 사진과 거의 비슷해요. 배송이 조금 느린 게 아쉬웠어요.",
+    authorNickname: "소현",
+    createdAt: "2026-06-24T09:12:00",
+  },
+  {
+    reviewId: 5,
+    rating: 5,
+    content: "가격 대비 만족스러워요. 재구매 의사 있습니다.",
+    authorNickname: "라서",
+    createdAt: "2026-06-18T18:40:00",
+  },
+  {
+    reviewId: 4,
+    rating: 3,
+    content: "무난합니다. 특별히 좋지도 나쁘지도 않아요.",
+    authorNickname: "수아",
+    createdAt: "2026-06-02T11:05:00",
+  },
+];
+
 // 함께 구매 추천 목 — cart/types.ts CartRecommendation 계약.
 const MOCK_CART_RECOMMENDATIONS = [
   {
@@ -297,6 +329,46 @@ export const handlers = [
     // API 명세: { success, data: { items: [...] } }. categoryId는 목 필터용 내부 필드라 제외.
     return HttpResponse.json(
       ok({ items: products.map(({ categoryId: _categoryId, ...p }) => p) }),
+    );
+  }),
+
+  // 상품 후기 (P-3) — distribution은 페이지와 무관한 전체 별점 분포.
+  http.get(`${BASE}/api/products/:productId/reviews`, ({ request, params }) => {
+    const id = Number(params.productId);
+    if (!POPULAR_PRODUCTS.some((p) => p.productId === id)) {
+      return HttpResponse.json(
+        fail("PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다."),
+        { status: 404 },
+      );
+    }
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get("page") ?? 0);
+    const size = Number(url.searchParams.get("size") ?? 10);
+    const sort = url.searchParams.get("sort") ?? "latest";
+
+    const sorted =
+      sort === "rating"
+        ? [...MOCK_PRODUCT_REVIEWS].sort((a, b) => b.rating - a.rating)
+        : [...MOCK_PRODUCT_REVIEWS].sort((a, b) =>
+            b.createdAt.localeCompare(a.createdAt),
+          );
+    const start = page * size;
+
+    return HttpResponse.json(
+      ok({
+        content: sorted.slice(start, start + size),
+        distribution: MOCK_PRODUCT_REVIEWS.reduce(
+          (acc, r) => {
+            acc[String(r.rating) as keyof typeof acc] += 1;
+            return acc;
+          },
+          { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 },
+        ),
+        page,
+        size,
+        totalElements: MOCK_PRODUCT_REVIEWS.length,
+        totalPages: Math.ceil(MOCK_PRODUCT_REVIEWS.length / size),
+      }),
     );
   }),
 

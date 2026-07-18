@@ -23,6 +23,29 @@ export interface ProductRating {
   count: number;
 }
 
+// 상품 후기 (P-3) — status=VISIBLE인 것만 내려온다.
+export interface ProductReview {
+  reviewId: number;
+  rating: number;
+  content: string;
+  authorNickname: string;
+  createdAt: string; // "2026-07-01T12:00:00"
+}
+
+export type ReviewSort = "latest" | "rating";
+
+// 별점 분포 — 키가 "5"~"1" 문자열로 오는 점에 주의(JSON 객체 키).
+export type ReviewDistribution = Record<"1" | "2" | "3" | "4" | "5", number>;
+
+export interface ProductReviewPage {
+  content: ProductReview[];
+  distribution: ReviewDistribution;
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface ProductDetail {
   id: number;
   name: string;
