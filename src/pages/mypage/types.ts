@@ -99,15 +99,7 @@ export interface RecentProduct {
   viewedAt: string; // ISO 일시 — 최신순 정렬 기준
 }
 
-// 찜한 상품 — 카드 표시용(상세 캐시 시딩) + 찜 등록 시각(최신순 정렬 기준).
-export interface WishlistProduct {
-  productId: number;
-  name: string;
-  brand: string;
-  imageUrl: string;
-  price: number;
-  wishedAt: string; // ISO 일시 — 최신순 정렬 기준
-}
+// 찜 타입은 상품 상세·챗봇과 공유 — shared/types/wishlist.ts 참조.
 
 // 취소·반품 신청 종류
 export type ClaimType =

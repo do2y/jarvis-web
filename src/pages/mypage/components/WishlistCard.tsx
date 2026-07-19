@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatPrice } from "@/shared/utils/formatPrice";
 import { useRemoveWishlistItem } from "../useWishlist";
-import type { WishlistProduct } from "../types";
+import type { WishlistProduct } from "@/shared/types/wishlist";
 
 export function WishlistCard({ product }: { product: WishlistProduct }) {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
     queryClient.setQueryData(["products", product.productId], {
       productId: product.productId,
       name: product.name,
-      brandName: product.brand,
+      brandName: product.brandName,
       price: product.price,
       imageUrl: product.imageUrl,
     });
@@ -55,7 +55,7 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
         onClick={goToDetail}
         className="mt-3 flex flex-1 flex-col text-left"
       >
-        <span className="text-xs text-muted-foreground">{product.brand}</span>
+        <span className="text-xs text-muted-foreground">{product.brandName}</span>
         <span className="mt-1 line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
           {product.name}
         </span>

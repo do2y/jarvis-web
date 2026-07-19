@@ -7,7 +7,6 @@ import type {
   OrderDetail,
   OrderPage,
   RecentProduct,
-  WishlistProduct,
 } from "./types";
 
 // 주문 목록 — 페이지네이션. 응답이 { content, page, ... } 형태라 그대로 반환한다.
@@ -30,16 +29,6 @@ export async function fetchRecentProducts(): Promise<RecentProduct[]> {
   return data.products;
 }
 
-export async function fetchWishlist(): Promise<WishlistProduct[]> {
-  const { data } = await api.get<{ products: WishlistProduct[] }>(
-    "/api/wishlist",
-  );
-  return data.products;
-}
-
-export async function removeWishlistItem(productId: number): Promise<void> {
-  await api.delete(`/api/wishlist/${productId}`);
-}
 
 export async function fetchClaims(): Promise<Claim[]> {
   const { data } = await api.get<{ claims: Claim[] }>("/api/mypage/claims");

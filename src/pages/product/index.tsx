@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Heart, Star } from "lucide-react";
+import { useIsWished, useToggleWishlist } from "@/shared/hooks/useWishlist";
+import { cn } from "@/lib/utils";
 import { AppHeader } from "@/shared/ui/AppHeader";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -28,6 +30,9 @@ export default function ProductPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const id = Number(productId);
+  const wished = useIsWished(id);
+  const { toggle: toggleWishlist, isPending: wishlistPending } =
+    useToggleWishlist();
 
   // OptionSelector의 최신 선택값을 담아두는 ref. 렌더 유발이 필요 없어 state 대신 ref 사용.
   const selectionRef = useRef<OptionSelection>({ option: null, quantity: 1 });
@@ -219,10 +224,23 @@ export default function ProductPage() {
               }}
             />
 
-            {/* 액션 — 찜/장바구니/바로구매. TODO: 찜 API·훅 연결 */}
+            {/* 액션 — 찜/장바구니/바로구매 */}
             <div className="mt-2 flex items-center gap-3">
-              <Button variant="outline" size="icon" aria-label="찜하기" className="size-11 shrink-0">
-                <Heart className="size-5" />
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={wished ? "찜 해제" : "찜하기"}
+                aria-pressed={wished}
+                onClick={() => toggleWishlist(id, wished)}
+                disabled={wishlistPending}
+                className="size-11 shrink-0"
+              >
+                <Heart
+                  className={cn(
+                    "size-5",
+                    wished && "fill-red-500 text-red-500",
+                  )}
+                />
               </Button>
               <Button
                 variant="outline"
