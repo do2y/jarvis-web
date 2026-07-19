@@ -178,6 +178,11 @@ export default function OrderDetailPage() {
                     .filter(Boolean)
                     .join(" ")}
                 </p>
+                {order.deliveryRequest && (
+                  <p className="mt-1 text-muted-foreground">
+                    요청사항: {order.deliveryRequest}
+                  </p>
+                )}
               </div>
             </Section>
 

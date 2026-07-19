@@ -82,6 +82,8 @@ export interface OrderDetail extends Omit<Order, "items"> {
   status: OrderPaymentStatus;
   paymentMethod: string; // "MOCK_CARD" 등
   paidAt: string | null;
+  // 주문 1회성 배송 지시 — 값이 없으면 키 자체가 생략된다.
+  deliveryRequest?: string;
   address: OrderShipping;
   items: OrderDetailItem[];
 }
