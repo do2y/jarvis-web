@@ -1,5 +1,9 @@
 # React + TypeScript + Vite
 
+> 세 서버 로컬 연결과 이번 계약 수정 내용: [docs/(FE)local-integration-guide.md](docs/%28FE%29local-integration-guide.md)
+>
+> AI 응답별 SSE 필드·이벤트 순서·FE 렌더링: [docs/(FE)ai-sse-response-cases.md](docs/%28FE%29ai-sse-response-cases.md)
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

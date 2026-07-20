@@ -13,12 +13,8 @@ export interface ChatScreenContext {
 
 export interface ChatRequest {
   sessionId: string;
-  userId?: number;
-  guestId?: string | null;
-  channel: ChatChannel;
+  threadId: string;
   message: string;
-  brandId?: number; // SELLER 채널 전용
-  screen?: ChatScreenContext; // 사이드 채팅에서만 전송
 }
 
 export interface ProductCard {
@@ -96,12 +92,14 @@ export interface SellerProductDiff {
 
 export type ChatAction =
   | { type: "CART_ADDED"; message: string; cartItemId: number }
+  | { type: "CART_ADD_FAILED"; message: string; cartItemId?: number }
   | { type: "PRODUCT_UPDATED"; message: string; productId: number }
   | { type: "PRODUCT_UPDATE_FAILED"; message: string; productId: number };
 
 export type ChatEvent =
   | { event: "token"; data: { text: string } }
-  | { event: "conditions"; data: { items: string[] } }
+  | { event: "conditions"; data: { chips: { label: string }[] } }
+  | { event: "products.ready"; data: { sessionId: string; listId: string } }
   | { event: "products"; data: { groups: ProductGroup[] } }
   | { event: "action"; data: ChatAction }
   | { event: "done"; data: { finishReason: string } }
@@ -110,7 +108,17 @@ export type ChatEvent =
   | { event: "metrics"; data: { items: SellerMetric[] } }
   | { event: "analysis"; data: SellerAnalysis }
   | { event: "productStats"; data: SellerProductStats }
-  | { event: "productDiff"; data: SellerProductDiff };
+  | { event: "productDiff"; data: SellerProductDiff }
+  | {
+      event: "draft";
+      data: {
+        draftId: string;
+        op: string;
+        productId: number | null;
+        changes: { field: string; before: string | number; after: string | number }[];
+        summary: string;
+      };
+    };
 
 /**
  * 채팅 결과 패널에 쌓이는 항목. 채널별로 종류가 다르므로 유니온으로 두고
