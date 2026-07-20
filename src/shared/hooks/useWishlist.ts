@@ -58,8 +58,13 @@ export function useToggleWishlist() {
       if (context?.previous) {
         queryClient.setQueryData(["wishlist"], context.previous);
       }
-      // 이미 찜한 상품(409)은 사용자 입장에선 실패가 아니다 — 재조회로 상태만 맞춘다.
-      if (error instanceof ApiError && error.code === "WISHLIST_DUPLICATE") {
+      // 이미 찜함(409)·이미 해제됨(404)은 사용자 입장에선 실패가 아니다.
+      // 원하는 상태에 이미 도달해 있으므로 롤백을 되돌리고 서버 기준으로 맞춘다.
+      // (onSettled가 어차피 재조회하지만, 롤백된 하트가 잠깐 보이는 것을 막는다)
+      if (
+        error instanceof ApiError &&
+        (error.code === "WISHLIST_DUPLICATE" || error.status === 404)
+      ) {
         queryClient.invalidateQueries({ queryKey: ["wishlist"] });
       }
     },

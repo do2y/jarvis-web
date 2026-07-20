@@ -1379,11 +1379,23 @@ export const handlers = [
     return HttpResponse.json(ok({ productId }));
   }),
 
-  // 찜 해제 (W-3) — 목에서도 반영되도록 모듈 배열에서 제거
-  http.delete(`${BASE}/api/wishlist/:productId`, ({ params }) => {
+  // 찜 해제 (W-3) — wishlistId가 아니라 productId 기준. 200 + data: null.
+  // 찜하지 않은 상품이면 404. 목에서도 반영되도록 모듈 배열에서 제거한다.
+  http.delete(`${BASE}/api/wishlist/:productId`, ({ params, request }) => {
+    if (!request.headers.get("Authorization")) {
+      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
+        status: 401,
+      });
+    }
     const id = Number(params.productId);
+    if (!mockWishlist.some((p) => p.productId === id)) {
+      return HttpResponse.json(
+        fail("WISHLIST_NOT_FOUND", "찜하지 않은 상품입니다."),
+        { status: 404 },
+      );
+    }
     mockWishlist = mockWishlist.filter((p) => p.productId !== id);
-    return new HttpResponse(null, { status: 204 });
+    return HttpResponse.json(ok(null));
   }),
 
   // ── 판매자 페이지 ──
