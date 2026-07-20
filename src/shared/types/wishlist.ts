@@ -10,6 +10,5 @@ export interface WishlistProduct {
   imageUrl: string;
   rating: number;
   reviewCount: number;
-  // 실제 응답에는 오지만 명세에는 없는 필드 — 아직 화면에서 쓰지 않아 optional로 둔다.
-  purchasable?: boolean;
+  purchasable: boolean;
 }
