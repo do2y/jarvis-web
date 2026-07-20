@@ -83,8 +83,9 @@ export default function ProductPage() {
         }
       : null;
 
-  // 없는 상품(404 PRODUCT_NOT_FOUND) — 시딩 데이터도 없으면 안내 후 종료
-  if (isError && !view) {
+  // 없는 상품(404 PRODUCT_NOT_FOUND) — 상세가 정본이므로 시딩 데이터가 있어도 안내한다.
+  // (챗봇 카드로 캐시에 남은 상품이 삭제된 경우, 구매 가능한 것처럼 보이면 안 됨)
+  if (isError) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <AppHeader />
@@ -139,12 +140,17 @@ export default function ProductPage() {
 
   const user = useAuthStore.getState().user;
 
+  // HIDDEN·품절 상품도 200으로 조회된다(직링크·찜 목록 대응) → purchasable로 구매 차단.
+  // 상세 도착 전(시딩 렌더)에는 아직 알 수 없으므로 구매 가능으로 둔다.
+  const purchasable = detail ? detail.purchasable : true;
+  const soldOut = detail ? detail.stockQuantity <= 0 : false;
+
   // 장바구니 담기 — 게스트도 가능(CLAUDE.md). 옵션 있는 상품은 선택 필수라
   // 서버 400(CART_OPTION_REQUIRED) 전에 프론트에서 먼저 막는다.
   const needsOption = (detail?.options.length ?? 0) > 0;
   const addToCart = () => {
     const { option, quantity } = selectionRef.current;
-    if (needsOption && !option) return;
+    if (!purchasable || (needsOption && !option)) return;
     addCart.mutate(
       {
         productId: id,
@@ -168,6 +174,7 @@ export default function ProductPage() {
   };
 
   const buyNow = () => {
+    if (!purchasable) return;
     // 구매는 로그인 필요(CLAUDE.md). 게스트면 현재 상세로 복귀하도록 returnUrl 걸어 로그인 유도.
     // (state는 리다이렉트로 유실되므로 로그인 후 상세에서 다시 "바로 구매"하게 한다.)
     if (!user) {
@@ -272,14 +279,28 @@ export default function ProductPage() {
                 variant="outline"
                 className="h-11 flex-1"
                 onClick={addToCart}
-                disabled={addCart.isPending}
+                disabled={addCart.isPending || !purchasable}
               >
                 {addCart.isPending ? "담는 중…" : "장바구니"}
               </Button>
-              <Button className="h-11 flex-1" onClick={buyNow}>
+              <Button
+                className="h-11 flex-1"
+                onClick={buyNow}
+                disabled={!purchasable}
+              >
                 바로 구매
               </Button>
             </div>
+
+            {/* 구매 불가 사유 — 버튼만 비활성이면 이유를 알 수 없어 함께 안내.
+                품절과 판매중지(HIDDEN 등)를 구분해 문구를 다르게 준다. */}
+            {!purchasable && (
+              <p className="text-sm text-muted-foreground" role="status">
+                {soldOut
+                  ? "품절된 상품이에요. 재입고 시 다시 구매할 수 있어요."
+                  : "현재 판매하지 않는 상품이에요."}
+              </p>
+            )}
 
             {/* 담기 결과 — 토스트가 없어 액션 하단에 인라인으로 노출.
                 실패는 자동 재시도하지 않고(중복 담기 방지) 버튼을 다시 누르게 한다. */}

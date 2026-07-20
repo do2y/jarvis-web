@@ -440,6 +440,27 @@ export const handlers = [
     );
   }),
 
+  // 개인화 추천 (P-5) — 로그인 필수. AT 없으면 401.
+  // FastAPI 실패·신규 회원은 백엔드가 인기상품으로 대체하므로 목도 항상 200 + items.
+  // ⚠ :productId 캐치올보다 먼저 등록해야 한다(뒤에 두면 "recommended"가 상세로 잡혀 404).
+  http.get(`${BASE}/api/products/recommended`, ({ request }) => {
+    if (!request.headers.get("Authorization")) {
+      // AT 자체가 없음 → 재발급 대상이 아니므로 AUTH_REQUIRED (401 2종 규약).
+      // AUTH_TOKEN_EXPIRED는 AT가 있으나 만료된 경우에만 쓴다.
+      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
+        status: 401,
+      });
+    }
+    // 인기상품과 다른 셋임을 눈으로 구분하려고 뒤에서부터 4개.
+    // categoryId는 목 필터용 내부 필드라 응답에서 제외.
+    const items = POPULAR_PRODUCTS.slice(-4).map((p) => {
+      const rest = { ...p };
+      delete (rest as { categoryId?: number }).categoryId;
+      return rest;
+    });
+    return HttpResponse.json(ok({ items }));
+  }),
+
   // 상품 상세 (P-2) — 인기상품 목에서 기본 정보를 빌려 상세 계약 형태로 조립.
   // 없는 ID는 404 PRODUCT_NOT_FOUND.
   http.get(`${BASE}/api/products/:productId`, ({ params }) => {
@@ -473,26 +494,6 @@ export const handlers = [
         rating: { average: base.rating, count: base.reviewCount },
       }),
     );
-  }),
-
-  // 개인화 추천 (P-5) — 로그인 필수. AT 없으면 401.
-  // FastAPI 실패·신규 회원은 백엔드가 인기상품으로 대체하므로 목도 항상 200 + items.
-  http.get(`${BASE}/api/products/recommended`, ({ request }) => {
-    if (!request.headers.get("Authorization")) {
-      // AT 자체가 없음 → 재발급 대상이 아니므로 AUTH_REQUIRED (401 2종 규약).
-      // AUTH_TOKEN_EXPIRED는 AT가 있으나 만료된 경우에만 쓴다.
-      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
-        status: 401,
-      });
-    }
-    // 인기상품과 다른 셋임을 눈으로 구분하려고 뒤에서부터 4개.
-    // categoryId는 목 필터용 내부 필드라 응답에서 제외.
-    const items = POPULAR_PRODUCTS.slice(-4).map((p) => {
-      const rest = { ...p };
-      delete (rest as { categoryId?: number }).categoryId;
-      return rest;
-    });
-    return HttpResponse.json(ok({ items }));
   }),
 
   http.post(`${BASE}/api/chat`, async ({ request }) => {
