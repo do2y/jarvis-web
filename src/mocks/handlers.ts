@@ -1,5 +1,6 @@
 ﻿import { http, HttpResponse } from "msw";
 import type { CartItem } from "@/shared/types/cart";
+import type { Order, OrderStatus } from "@/pages/mypage/types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -1007,6 +1008,24 @@ export const handlers = [
     );
   }),
 
+  // 주문 상세 (O-4) — 로그인 필요. 없는 주문·타인 주문 모두 404로 존재 은닉(IDOR 관례).
+  http.get(`${BASE}/api/orders/:orderId`, ({ params, request }) => {
+    if (!request.headers.get("Authorization")) {
+      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
+        status: 401,
+      });
+    }
+    const id = Number(params.orderId);
+    const order = MOCK_ORDER_PAGE_ITEMS.find((o) => o.orderId === id);
+    if (!order) {
+      return HttpResponse.json(
+        fail("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."),
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(ok(buildOrderDetailV2(order)));
+  }),
+
   // ── 주문 생성 + 모의 결제 (O-1) ──
   // 라인아이템 출처는 cartItemIds / items 중 정확히 하나. 금액은 서버(=목)가 재계산하므로
   // body의 금액 필드는 아예 받지 않는다. 결제 성공·실패 모두 200이고 status로 구분.
@@ -1394,12 +1413,12 @@ const MOCK_ORDERS = [
 
 // 주문 목록 (O-3) 목 — mypage/types.ts Order 계약. 위 MOCK_ORDERS는 구 /api/mypage/orders
 // 계약(orderId 문자열·status 필드)이라 별개다. 8종 enum 중 대표 케이스를 담는다.
-const MOCK_ORDER_PAGE_ITEMS = [
+const MOCK_ORDER_PAGE_ITEMS: Order[] = [
   {
     orderId: 1001,
     orderNo: "ORD-20260713-1001",
     orderedAt: "2026-07-13T14:00:00+09:00",
-    representativeStatus: "SHIPPING" as const,
+    representativeStatus: "SHIPPING",
     totalAmount: 92000,
     items: [
       {
@@ -1411,7 +1430,7 @@ const MOCK_ORDER_PAGE_ITEMS = [
         price: 92000,
         imageUrl:
           "https://image.msscdn.net/thumbnails/images/goods_img/20230724/3421211/3421211_17803608469427_big.jpg?w=1200",
-        status: "SHIPPING" as const,
+        status: "SHIPPING",
       },
     ],
   },
@@ -1419,7 +1438,7 @@ const MOCK_ORDER_PAGE_ITEMS = [
     orderId: 1002,
     orderNo: "ORD-20260701-1002",
     orderedAt: "2026-07-01T10:30:00+09:00",
-    representativeStatus: "DELIVERED" as const,
+    representativeStatus: "DELIVERED",
     totalAmount: 89000,
     items: [
       {
@@ -1431,7 +1450,7 @@ const MOCK_ORDER_PAGE_ITEMS = [
         price: 89000,
         imageUrl:
           "https://image.msscdn.net/thumbnails/images/goods_img/20250722/5262448/5262448_17561780734495_big.jpg?w=1200",
-        status: "DELIVERED" as const,
+        status: "DELIVERED",
       },
     ],
   },
@@ -1440,7 +1459,7 @@ const MOCK_ORDER_PAGE_ITEMS = [
     orderId: 1003,
     orderNo: "ORD-20260620-1003",
     orderedAt: "2026-06-20T09:15:00+09:00",
-    representativeStatus: "CLAIM_IN_PROGRESS" as const,
+    representativeStatus: "CLAIM_IN_PROGRESS",
     totalAmount: 62000,
     items: [
       {
@@ -1452,7 +1471,7 @@ const MOCK_ORDER_PAGE_ITEMS = [
         price: 62000,
         imageUrl:
           "https://img.29cm.co.kr/item/202606/11f16f98cff926419090358d89120339.png?width=1440&format=webp",
-        status: "CLAIM_IN_PROGRESS" as const,
+        status: "CLAIM_IN_PROGRESS",
       },
     ],
   },
@@ -1460,7 +1479,7 @@ const MOCK_ORDER_PAGE_ITEMS = [
     orderId: 1004,
     orderNo: "ORD-20260605-1004",
     orderedAt: "2026-06-05T16:40:00+09:00",
-    representativeStatus: "COMPLETED" as const,
+    representativeStatus: "COMPLETED",
     totalAmount: 198000,
     items: [
       {
@@ -1472,11 +1491,54 @@ const MOCK_ORDER_PAGE_ITEMS = [
         price: 198000,
         imageUrl:
           "https://image.msscdn.net/thumbnails/images/goods_img/20251022/5625561/5625561_17610941581236_big.jpg?w=1200",
-        status: "COMPLETED" as const,
+        status: "COMPLETED",
       },
     ],
   },
 ];
+
+// 주문 상세 (O-4) 목 — 목록 항목에 배송지·결제 스냅샷과 can* 액션 플래그를 더해 조립한다.
+// 실제 백엔드는 01 §3 매트릭스로 can*를 계산하지만, 목은 대표 상태로 근사한다.
+// (FE는 이 boolean만 보고 버튼을 노출하며 상태 판단을 중복 구현하지 않는다 — 명세)
+const ORDER_DETAIL_SNAPSHOT = {
+  recipient: "김소이",
+  phone: "010-1234-5678",
+  zipCode: "06292",
+  address1: "서울시 강남구 테헤란로 123",
+  address2: "102동 1503호",
+};
+
+function buildOrderDetailV2(
+  order: (typeof MOCK_ORDER_PAGE_ITEMS)[number],
+) {
+  // 픽스처에 없는 상태도 규칙에 포함되므로 넓은 타입으로 다룬다
+  const s: OrderStatus = order.representativeStatus;
+  // 배송 전에만 취소, 배송완료 후에만 반품·후기. 클레임 중·종결 주문은 모두 불가.
+  const canCancel = s === "PENDING" || s === "ORDERED";
+  const canReturn = s === "DELIVERED" || s === "CONFIRMED";
+  const canReview = s === "DELIVERED" || s === "CONFIRMED";
+
+  return {
+    orderId: order.orderId,
+    orderNo: order.orderNo,
+    orderedAt: order.orderedAt,
+    paidAt: order.orderedAt,
+    status: "PAID",
+    representativeStatus: s,
+    paymentMethod: "MOCK_CARD",
+    deliveryRequest: "문 앞에 놓아주세요",
+    address: ORDER_DETAIL_SNAPSHOT,
+    totalAmount: order.totalAmount,
+    items: order.items.map((it) => ({
+      ...it,
+      // 정가 스냅샷 — 할인 표시용. 목은 판매가의 약 1.25배로 둔다.
+      originalPrice: Math.round((it.price * 1.25) / 1000) * 1000,
+      canCancel,
+      canReturn,
+      canReview,
+    })),
+  };
+}
 
 // 주문별 배송지·결제 스냅샷 — orderId 기준. 금액은 items에서 파생(buildOrderDetail).
 const ORDER_DETAIL_META = {
