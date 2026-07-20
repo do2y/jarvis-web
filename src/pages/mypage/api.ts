@@ -24,11 +24,12 @@ export async function fetchOrder(orderId: number): Promise<OrderDetail> {
   return data;
 }
 
+// 최근 본 상품 — 로그인 필요. 서버가 product_view 이벤트에서 중복 제거해 최신 20개를 준다.
 export async function fetchRecentProducts(): Promise<RecentProduct[]> {
-  const { data } = await api.get<{ products: RecentProduct[] }>(
-    "/api/mypage/recent-products",
+  const { data } = await api.get<{ items: RecentProduct[] }>(
+    "/api/products/recent",
   );
-  return data.products;
+  return data.items;
 }
 
 

@@ -1,11 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/shared/stores/authStore";
 import { fetchRecentProducts } from "./api";
 
 // 최근 본 상품 — 서버 원본. 조회 즉시 갱신될 수 있어 staleTime 0.
+// 게스트는 401이라 아예 호출하지 않는다(찜 목록과 동일).
 export function useRecentProducts() {
+  const isAuthed = useAuthStore((s) => s.accessToken !== null);
+
   return useQuery({
     queryKey: ["recentProducts"],
     queryFn: fetchRecentProducts,
     staleTime: 0,
+    enabled: isAuthed,
   });
 }

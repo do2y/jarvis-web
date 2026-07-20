@@ -90,15 +90,19 @@ export interface OrderDetail extends Omit<Order, "items"> {
   items: OrderDetailItem[];
 }
 
-// 최근 본 상품 — 카드 표시용. 상세 진입 시 캐시 시딩하도록 카드 수준 데이터 포함.
-// viewedAt으로 최신순 정렬(서버가 정렬해 내려주는 것을 기준으로 표시).
+// 최근 본 상품 — behavior_events의 product_view 기반(중복 제거 후 최신 20개).
+// 정렬은 서버가 최신순으로 내려준 것을 그대로 쓴다(응답에 viewedAt은 없음).
+// 필드 구성은 찜 목록(WishlistProduct)과 동일한 카드 계약이다.
 export interface RecentProduct {
   productId: number;
   name: string;
-  brand: string;
-  imageUrl: string;
+  brandName: string;
   price: number;
-  viewedAt: string; // ISO 일시 — 최신순 정렬 기준
+  originalPrice: number;
+  imageUrl: string;
+  rating: number;
+  reviewCount: number;
+  purchasable: boolean; // HIDDEN 상품도 목록에 유지되므로 false일 수 있다
 }
 
 // 찜 타입은 상품 상세·챗봇과 공유 — shared/types/wishlist.ts 참조.

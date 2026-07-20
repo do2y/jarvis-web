@@ -1,6 +1,11 @@
 ﻿import { http, HttpResponse } from "msw";
 import type { CartItem } from "@/shared/types/cart";
-import type { Claim, Order, OrderStatus } from "@/pages/mypage/types";
+import type {
+  Claim,
+  Order,
+  OrderStatus,
+  RecentProduct,
+} from "@/pages/mypage/types";
 import type { WishlistProduct } from "@/shared/types/wishlist";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
@@ -507,6 +512,17 @@ export const handlers = [
     return HttpResponse.json(ok({ items: POPULAR_PRODUCTS.slice(-4) }));
   }),
 
+  // 최근 본 상품 — 로그인 필요. behavior_events의 product_view 기반(중복 제거 후 최신 20개).
+  // ⚠ :productId 캐치올보다 먼저 등록해야 한다(뒤에 두면 "recent"가 상세로 잡혀 404).
+  http.get(`${BASE}/api/products/recent`, ({ request }) => {
+    if (!request.headers.get("Authorization")) {
+      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
+        status: 401,
+      });
+    }
+    return HttpResponse.json(ok({ items: MOCK_RECENT_PRODUCTS.slice(0, 20) }));
+  }),
+
   // 상품 상세 (P-2) — 인기상품 목에서 기본 정보를 빌려 상세 계약 형태로 조립.
   // 없는 ID는 404 PRODUCT_NOT_FOUND.
   http.get(`${BASE}/api/products/:productId`, ({ params }) => {
@@ -652,9 +668,6 @@ export const handlers = [
     return HttpResponse.json(buildOrderDetail(order));
   }),
 
-  http.get(`${BASE}/api/mypage/recent-products`, () =>
-    HttpResponse.json({ products: MOCK_RECENT_PRODUCTS }),
-  ),
 
   // 취소·반품 내역 (CL-2) — page(기본 0)/size(기본 10). 로그인 필요.
   http.get(`${BASE}/api/claims`, ({ request }) => {
@@ -1816,79 +1829,104 @@ function buildOrderDetail(order: (typeof MOCK_ORDERS)[number]) {
   };
 }
 
-// 최근 본 상품 목 — mypage/types.ts RecentProduct 계약. viewedAt 내림차순(최신순).
-const MOCK_RECENT_PRODUCTS = [
+// 최근 본 상품 목 — mypage/types.ts RecentProduct 계약(찜 목록과 동일한 카드 필드).
+// 서버가 product_view에서 중복 제거해 최신순으로 준 것을 그대로 쓴다(viewedAt 없음).
+const MOCK_RECENT_PRODUCTS: RecentProduct[] = [
   {
     productId: 301,
     name: "에센셜 크루넥 반팔 티셔츠",
-    brand: "더센트",
+    brandName: "더센트",
     imageUrl:
       "https://image.msscdn.net/thumbnails/images/goods_img/20230724/3421211/3421211_17803608469427_big.jpg?w=1200",
     price: 92000,
-    viewedAt: "2025-07-12T10:24:00+09:00",
+    originalPrice: 230000,
+    rating: 4.9,
+    reviewCount: 2847,
+    purchasable: true,
   },
   {
     productId: 203,
     name: "피그먼트 워시드 오버핏 티셔츠 EH2241",
-    brand: "에르모사",
+    brandName: "에르모사",
     imageUrl:
       "https://image.msscdn.net/thumbnails/images/goods_img/20240328/4002805/4002805_17331895953907_big.jpg?w=1200",
     price: 145000,
-    viewedAt: "2025-07-12T09:58:00+09:00",
+    originalPrice: 145000,
+    rating: 4.8,
+    reviewCount: 1204,
+    purchasable: true,
   },
   {
     productId: 306,
     name: "소프트 코튼 크루넥 반팔 티셔츠",
-    brand: "르블랑",
+    brandName: "르블랑",
     imageUrl:
       "https://img.29cm.co.kr/item/202606/11f16f98cff926419090358d89120339.png?width=1440&format=webp",
     price: 89000,
-    viewedAt: "2025-07-11T21:12:00+09:00",
+    originalPrice: 112000,
+    rating: 4.5,
+    reviewCount: 640,
+    purchasable: true,
   },
   {
     productId: 202,
     name: "코튼 릴렉스 반팔 티셔츠 NVOP3300",
-    brand: "라인어디션",
+    brandName: "라인어디션",
     imageUrl:
       "https://image.msscdn.net/thumbnails/images/goods_img/20251015/5593843/5593843_17652503983820_big.png?w=1200",
     price: 118000,
-    viewedAt: "2025-07-11T18:40:00+09:00",
+    originalPrice: 148000,
+    rating: 4.6,
+    reviewCount: 812,
+    purchasable: true,
   },
   {
     productId: 205,
     name: "드롭숄더 하프 슬리브 티셔츠 FL7788",
-    brand: "라인어디션",
+    brandName: "라인어디션",
     imageUrl:
       "https://image.msscdn.net/thumbnails/images/goods_img/20260505/6421311/6421311_17779600135524_big.jpg?w=1200",
     price: 108000,
-    viewedAt: "2025-07-10T14:05:00+09:00",
+    originalPrice: 135000,
+    rating: 4.4,
+    reviewCount: 356,
+    purchasable: true,
   },
   {
     productId: 204,
     name: "코튼 오버핏 반팔 티셔츠 CH1020",
-    brand: "데일리로브",
+    brandName: "데일리로브",
     imageUrl:
       "https://img.29cm.co.kr/item/202604/11f132e7cad3859a9ec501cbcc2e8a97.jpg?width=720&format=webp",
     price: 64000,
-    viewedAt: "2025-07-09T20:31:00+09:00",
+    originalPrice: 79000,
+    rating: 4.3,
+    reviewCount: 211,
+    purchasable: true,
   },
   {
     productId: 303,
     name: "헤비웨이트 오버핏 티셔츠 TSKN1801",
-    brand: "더센트",
+    brandName: "더센트",
     imageUrl:
       "https://image.msscdn.net/thumbnails/images/goods_img/20260618/6694104/6694104_17817540562281_big.jpg?w=1200",
     price: 89000,
-    viewedAt: "2025-07-08T11:47:00+09:00",
+    originalPrice: 112000,
+    rating: 4.7,
+    reviewCount: 933,
+    purchasable: true,
   },
   {
     productId: 206,
     name: "가먼트 다잉 포켓 티셔츠 DT3311",
-    brand: "쁘띠메종",
+    brandName: "쁘띠메종",
     imageUrl:
       "https://image.msscdn.net/thumbnails/images/prd_img/20260618/6694104/detail_6694104_17817540680127_big.jpg?w=1200",
     price: 73000,
-    viewedAt: "2025-07-07T16:22:00+09:00",
+    originalPrice: 89000,
+    rating: 4.2,
+    reviewCount: 97,
+    purchasable: false,
   },
 ];
 
