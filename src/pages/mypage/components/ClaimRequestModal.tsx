@@ -34,8 +34,14 @@ export function ClaimRequestModal({
   order: Order;
 }) {
   const navigate = useNavigate();
-  const { mutate, isPending, isSuccess, isError, reset: resetMutation } =
-    useCreateClaim();
+  const {
+    mutate,
+    isPending,
+    isSuccess,
+    isError,
+    errorMessage,
+    reset: resetMutation,
+  } = useCreateClaim();
 
   const {
     register,
@@ -43,11 +49,11 @@ export function ClaimRequestModal({
     reset,
     formState: { errors },
   } = useForm<ClaimRequestFormInput, unknown, ClaimRequestFormValues>({
-    // 폼 필드는 문자열(input) → coerce 후 productId: number(output)로 검증.
+    // 폼 필드는 문자열(input) → coerce 후 orderItemId: number(output)로 검증.
     // 3번째 제네릭(output)으로 handleSubmit 콜백이 변환된 값을 받게 한다.
     resolver: zodResolver(claimRequestSchema),
     defaultValues: {
-      productId: order.items[0]?.productId,
+      orderItemId: order.items[0]?.orderItemId,
       reason: "",
       detail: "",
     },
@@ -57,17 +63,18 @@ export function ClaimRequestModal({
   useEffect(() => {
     if (!open) return;
     resetMutation();
-    reset({ productId: order.items[0]?.productId, reason: "", detail: "" });
+    reset({ orderItemId: order.items[0]?.orderItemId, reason: "", detail: "" });
   }, [open, order, reset, resetMutation]);
 
-  // zodResolver가 input→output 변환을 마친 값을 넘겨준다(productId: number).
+  // zodResolver가 input→output 변환을 마친 값을 넘겨준다(orderItemId: number).
   const submit = (values: ClaimRequestFormValues) => {
+    // API body는 type·reason만 받는다. 상세 설명은 별도 필드가 없어 사유에 덧붙인다.
+    const reason = values.detail
+      ? `${values.reason} - ${values.detail}`
+      : values.reason;
     mutate({
-      orderId: String(order.orderId),
-      productId: values.productId,
-      type: "RETURN",
-      reason: values.reason,
-      detail: values.detail || undefined,
+      orderItemId: values.orderItemId,
+      body: { type: "RETURN", reason },
     });
     // 성공 시 모달을 닫지 않고 완료 화면(isSuccess)으로 전환 — 아래 렌더 분기.
   };
@@ -134,30 +141,32 @@ export function ClaimRequestModal({
                 </p>
                 <input
                   type="hidden"
-                  {...register("productId")}
-                  value={order.items[0].productId}
+                  {...register("orderItemId")}
+                  value={order.items[0].orderItemId}
                 />
               </>
             ) : (
               <select
                 id="claim-product"
-                aria-invalid={!!errors.productId}
+                aria-invalid={!!errors.orderItemId}
                 className={cn(
                   "h-11 rounded-sm border bg-background px-3 text-sm",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
-                {...register("productId")}
+                {...register("orderItemId")}
               >
+                {/* 옵션이 다르면 같은 상품도 별개 줄이므로 옵션명을 함께 보여준다 */}
                 {order.items.map((item) => (
-                  <option key={item.productId} value={item.productId}>
+                  <option key={item.orderItemId} value={item.orderItemId}>
                     {item.productName}
+                    {item.optionName ? ` (${item.optionName})` : ""}
                   </option>
                 ))}
               </select>
             )}
-            {errors.productId && (
+            {errors.orderItemId && (
               <p className="text-sm text-destructive">
-                {errors.productId.message}
+                {errors.orderItemId.message}
               </p>
             )}
           </div>
@@ -208,10 +217,11 @@ export function ClaimRequestModal({
             )}
           </div>
 
-          {/* 실패 안내 — 자동 재시도 없이 제출 버튼으로 재시도 */}
-          {isError && !isSuccess && (
-            <p className="text-sm text-destructive">
-              신청에 실패했어요. 잠시 후 다시 시도해주세요.
+          {/* 실패 안내 — 자동 재시도 없이 제출 버튼으로 재시도.
+              거부 사유(배송중 취소 불가·중복 접수 등)를 서버 코드로 구분해 보여준다. */}
+          {isError && !isSuccess && errorMessage && (
+            <p className="text-sm text-destructive" role="alert">
+              {errorMessage}
             </p>
           )}
 

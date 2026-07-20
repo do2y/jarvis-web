@@ -2,6 +2,7 @@ import { api } from "@/shared/api/client";
 import type {
   Claim,
   CreateClaimRequest,
+  CreateClaimResponse,
   CreateReviewRequest,
   Inquiry,
   OrderDetail,
@@ -35,9 +36,17 @@ export async function fetchClaims(): Promise<Claim[]> {
   return data.claims;
 }
 
-// 반품 신청 접수 — 성공 시 훅에서 claims 캐시 무효화.
-export async function createClaim(body: CreateClaimRequest): Promise<void> {
-  await api.post("/api/mypage/claims", body);
+// 취소·반품 신청 접수 — 대상은 orderItemId(path). 성공 시 훅에서 claims 캐시 무효화.
+// 허용 여부는 서버가 아이템 상태×타입 매트릭스로 판정한다(FE에서 중복 판단하지 않음).
+export async function createClaim(
+  orderItemId: number,
+  body: CreateClaimRequest,
+): Promise<CreateClaimResponse> {
+  const { data } = await api.post<CreateClaimResponse>(
+    `/api/order-items/${orderItemId}/claims`,
+    body,
+  );
+  return data;
 }
 
 export async function createReview(body: CreateReviewRequest): Promise<void> {

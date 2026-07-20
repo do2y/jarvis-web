@@ -639,39 +639,90 @@ export const handlers = [
     HttpResponse.json({ claims: MOCK_CLAIMS }),
   ),
 
-  // 반품 신청 접수 — mypage/types.ts CreateClaimRequest 계약.
-  // 원 주문에서 상품명을 찾아 Claim으로 만들어 목록 맨 앞(최신순)에 추가.
-  http.post(`${BASE}/api/mypage/claims`, async ({ request }) => {
-    const body = (await request.json()) as {
-      orderId: string;
-      productId: number;
-      type: "CANCEL" | "RETURN";
-      reason: string;
-      detail?: string;
-    };
-    const order = MOCK_ORDERS.find((o) => o.orderId === body.orderId);
-    const item = order?.items.find((i) => i.productId === body.productId);
-    if (!order || !item) {
-      return HttpResponse.json(
-        { message: "주문 상품을 찾을 수 없어요." },
-        { status: 400 },
+  // 취소·반품 신청 접수 (CL-1) — 대상은 orderItemId(path), body는 { type, reason? }.
+  // 허용 여부는 서버(=목)가 아이템 상태 × 타입 매트릭스로 판정한다.
+  http.post(
+    `${BASE}/api/order-items/:orderItemId/claims`,
+    async ({ params, request }) => {
+      const orderItemId = Number(params.orderItemId);
+      const body = (await request.json()) as {
+        type: "CANCEL" | "RETURN";
+        reason?: string;
+      };
+
+      // 없는 아이템·타인 아이템 모두 404로 통일 — 존재 은닉(IDOR 관례)
+      const order = MOCK_ORDER_PAGE_ITEMS.find((o) =>
+        o.items.some((i) => i.orderItemId === orderItemId),
       );
-    }
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const seq = String(nextClaimSeq++).padStart(3, "0");
-    const created = {
-      claimId: `CLM-NEW${seq}`,
-      orderId: body.orderId,
-      productId: body.productId,
-      productName: item.name,
-      type: body.type,
-      status: "REQUESTED" as const, // 접수 → 이후 처리중/완료로 전환(목에선 고정)
-      reason: body.reason,
-      requestedAt: today,
-    };
-    MOCK_CLAIMS = [created, ...MOCK_CLAIMS];
-    return HttpResponse.json(created, { status: 201 });
-  }),
+      const item = order?.items.find((i) => i.orderItemId === orderItemId);
+      if (!order || !item) {
+        return HttpResponse.json(
+          fail("ORDER_ITEM_NOT_FOUND", "주문 상품을 찾을 수 없습니다."),
+          { status: 404 },
+        );
+      }
+
+      // 활성 클레임(접수·처리중)이 있으면 중복 접수 불가
+      if (
+        MOCK_CLAIMS.some(
+          (c) =>
+            c.orderItemId === orderItemId &&
+            (c.status === "REQUESTED" || c.status === "PROCESSING"),
+        )
+      ) {
+        return HttpResponse.json(
+          fail("CLAIM_ALREADY_REQUESTED", "이미 접수된 신청이 있습니다."),
+          { status: 409 },
+        );
+      }
+
+      // 01 §3 매트릭스 근사 — 취소는 배송 전, 반품은 배송 완료 후에만 허용
+      const s: OrderStatus = item.status;
+      const allowed =
+        body.type === "CANCEL"
+          ? s === "PENDING" || s === "ORDERED"
+          : s === "DELIVERED" || s === "CONFIRMED";
+      if (!allowed) {
+        return HttpResponse.json(
+          fail(
+            "CLAIM_NOT_ALLOWED",
+            body.type === "CANCEL"
+              ? "배송중인 상품은 취소할 수 없습니다."
+              : "배송 완료 후에만 반품할 수 있습니다.",
+          ),
+          { status: 400 },
+        );
+      }
+
+      const claimId = nextClaimSeq++;
+      const requestedAt = `${new Date().toISOString().slice(0, 10)}T12:00:00+09:00`;
+      // 목록(GET /api/mypage/claims)은 별도 계약이라 그 형태로도 한 건 쌓아둔다.
+      MOCK_CLAIMS = [
+        {
+          claimId: `CLM-${claimId}`,
+          orderItemId,
+          orderId: order.orderNo,
+          productId: item.productId,
+          productName: item.productName,
+          type: body.type,
+          status: "REQUESTED" as const,
+          reason: body.reason ?? "",
+          requestedAt: requestedAt.slice(0, 10),
+        },
+        ...MOCK_CLAIMS,
+      ];
+
+      return HttpResponse.json(
+        ok({
+          claimId,
+          orderItemId,
+          type: body.type,
+          status: "REQUESTED",
+          requestedAt,
+        }),
+      );
+    },
+  ),
 
   // 문의 내역 — 읽기 전용. mypage/types.ts Inquiry 계약.
   http.get(`${BASE}/api/mypage/inquiries`, () =>
@@ -1691,35 +1742,28 @@ const MOCK_RECENT_PRODUCTS = [
 // 원 주문(MOCK_ORDERS)의 상품과 연결. let: 주문 내역에서 신청(POST) 시 추가.
 let nextClaimSeq = 1;
 let MOCK_CLAIMS = [
+  // orderItemId 2003은 CLAIM_IN_PROGRESS 주문의 아이템 — 중복 접수(409) 재현용
   {
-    claimId: "CLM-20250520",
-    orderId: "ORD-20250515",
-    productId: 303,
-    productName: "헤비웨이트 오버핏 티셔츠 TSKN1801",
+    claimId: "CLM-20260620",
+    orderItemId: 2003,
+    orderId: "ORD-20260620-1003",
+    productId: 305,
+    productName: "릴렉스핏 하프 슬리브 니트 TSSK1402",
     type: "RETURN",
     status: "PROCESSING",
     reason: "단순 변심",
-    requestedAt: "2025-05-20",
+    requestedAt: "2026-06-20",
   },
   {
-    claimId: "CLM-20250503",
-    orderId: "ORD-20250428",
+    claimId: "CLM-20260605",
+    orderItemId: 2004,
+    orderId: "ORD-20260605-1004",
     productId: 304,
     productName: "브러시드 플리스 스웨트셔츠 TSCT3301",
     type: "RETURN",
     status: "COMPLETED",
     reason: "상품이 파손·불량이에요",
-    requestedAt: "2025-05-03",
-  },
-  {
-    claimId: "CLM-20250412",
-    orderId: "ORD-20250410",
-    productId: 305,
-    productName: "릴렉스핏 하프 슬리브 니트 TSSK1402",
-    type: "CANCEL",
-    status: "COMPLETED",
-    reason: "주문 실수",
-    requestedAt: "2025-04-12",
+    requestedAt: "2026-06-05",
   },
 ];
 

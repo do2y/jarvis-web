@@ -117,6 +117,7 @@ export type ClaimStatus =
 
 export interface Claim {
   claimId: string; // "CLM-20250520"
+  orderItemId: number; // 신청 대상 주문 줄(API 키). 중복 접수 판정 기준
   orderId: string; // 원 주문번호 "ORD-20250515"
   productId: number;
   productName: string;
@@ -126,14 +127,21 @@ export interface Claim {
   requestedAt: string; // ISO 날짜 (YYYY-MM-DD) — 최신순 정렬 기준
 }
 
-// 반품 신청 요청 — 주문 내역에서 접수. 백엔드 POST /api/mypage/claims 계약.
-// detail(상세 설명)은 선택. type은 RETURN(반품)만 이 흐름에서 사용.
+// 취소·반품 신청 요청 — POST /api/order-items/{orderItemId}/claims 계약.
+// 대상은 path의 orderItemId로 지정하므로 body에는 종류·사유만 담는다.
+// (같은 상품을 옵션만 다르게 담은 주문에서 orderId+productId는 줄을 특정하지 못한다)
 export interface CreateClaimRequest {
-  orderId: string;
-  productId: number;
   type: ClaimType;
-  reason: string;
-  detail?: string;
+  reason?: string;
+}
+
+// 신청 접수 응답 — 목록의 Claim과 달리 id가 number다(백엔드 PK).
+export interface CreateClaimResponse {
+  claimId: number;
+  orderItemId: number;
+  type: ClaimType;
+  status: ClaimStatus;
+  requestedAt: string; // ISO 일시(+09:00)
 }
 
 // 문의 처리 상태 (스크린샷: 처리중 / 답변완료) — 문의 챗봇에서 접수, 읽기 전용.
