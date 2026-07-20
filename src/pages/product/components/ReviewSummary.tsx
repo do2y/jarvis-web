@@ -11,7 +11,8 @@ const SORTS: { value: ReviewSort; label: string }[] = [
   { value: "rating", label: "평점순" },
 ];
 
-// "2026-07-01T12:00:00" → "2026.07.01"
+// "2026-07-01T12:00:00+09:00" → "2026.07.01"
+// 앞 10자만 쓰므로 Date 파싱 없이 서버가 준 날짜(KST) 그대로 표시된다.
 function formatDate(iso: string): string {
   return iso.slice(0, 10).replaceAll("-", ".");
 }

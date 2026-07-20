@@ -29,7 +29,7 @@ export interface ProductReview {
   rating: number;
   content: string;
   authorNickname: string;
-  createdAt: string; // "2026-07-01T12:00:00"
+  createdAt: string; // "2026-07-01T12:00:00+09:00" — 오프셋 포함(명세)
 }
 
 export type ReviewSort = "latest" | "rating";
