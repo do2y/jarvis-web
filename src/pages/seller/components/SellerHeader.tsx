@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { ChevronDown, LogOut, MessageSquare } from "lucide-react";
 import { buttonVariants } from "@/shared/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useLogout } from "@/shared/hooks/useLogout";
 import { useAuthStore } from "@/shared/stores/authStore";
 
 const MENU = [
@@ -30,13 +31,7 @@ interface SellerHeaderProps {
  */
 export function SellerHeader({ chatOpen, onToggleChat }: SellerHeaderProps) {
   const user = useAuthStore((s) => s.user);
-  const clearAuth = useAuthStore((s) => s.clearAuth);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    clearAuth();
-    navigate("/");
-  };
+  const handleLogout = useLogout();
 
   return (
     <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">

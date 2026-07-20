@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   ChevronDown,
   Heart,
@@ -16,8 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { logout } from "@/shared/api/auth";
 import { useCartItemCount } from "@/shared/hooks/useCart";
+import { useLogout } from "@/shared/hooks/useLogout";
 import { useAuthStore, type UserRole } from "@/shared/stores/authStore";
 
 interface AppHeaderProps {
@@ -80,8 +80,6 @@ function NavIconLink({
 
 export function AppHeader({ showMenu = true, leftSlot }: AppHeaderProps) {
   const user = useAuthStore((s) => s.user);
-  const clearAuth = useAuthStore((s) => s.clearAuth);
-  const navigate = useNavigate();
   // 게스트도 장바구니를 쓰므로 로그인 여부와 무관하게 조회 (CLAUDE.md)
   const cartCount = useCartItemCount();
 
@@ -92,16 +90,7 @@ export function AppHeader({ showMenu = true, leftSlot }: AppHeaderProps) {
   const pathname = useLocation().pathname;
   const hasChatEntry = pathname === "/" || pathname.startsWith("/chat");
 
-  const handleLogout = async () => {
-    // 서버 RT 삭제 시도 → 성공/실패 무관하게 로컬 상태는 반드시 비우고 이동.
-    // (네트워크 실패로 서버 호출이 안 돼도 로그인 상태로 남지 않도록)
-    try {
-      await logout();
-    } finally {
-      clearAuth();
-      navigate("/");
-    }
-  };
+  const handleLogout = useLogout();
 
   return (
     <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
