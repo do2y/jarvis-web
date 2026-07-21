@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/client";
 import {
-  addCartItem,
   fetchCartRecommendations,
   removeCartItem,
   updateCartQuantity,
 } from "./api";
 import type { Cart } from "./types";
 
+// 담기(useAddCartItem)는 상세·챗봇·찜에서도 쓰므로 shared/hooks/useCart.ts로 승격됨.
 export { useCart, useCartItemCount } from "@/shared/hooks/useCart";
 
 export function useCartRecommendations() {
@@ -16,33 +16,6 @@ export function useCartRecommendations() {
     queryFn: fetchCartRecommendations,
     staleTime: 5 * 60 * 1000,
   });
-}
-
-function toAddCartMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.code === "CART_OPTION_REQUIRED") return "옵션을 선택해주세요.";
-    if (error.code === "CART_OPTION_INVALID")
-      return "선택한 옵션을 찾을 수 없어요.";
-    if (error.code === "PRODUCT_NOT_FOUND") return "상품을 찾을 수 없어요.";
-    // 검증 실패는 필드 사유("수량은 99 이하여야 합니다.")가 더 구체적이라 우선
-    if (error.displayMessage) return error.displayMessage;
-  }
-  return "장바구니에 담지 못했어요. 잠시 후 다시 시도해주세요.";
-}
-
-export function useAddCartItem() {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: addCartItem,
-    retry: false,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
-  });
-
-  return {
-    ...mutation,
-    errorMessage: mutation.error ? toAddCartMessage(mutation.error) : null,
-  };
 }
 
 // 수량 변경·삭제 실패 메시지. 검증 실패는 필드 사유("수량은 99 이하여야 합니다.")를

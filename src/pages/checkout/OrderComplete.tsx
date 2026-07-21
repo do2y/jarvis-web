@@ -3,12 +3,9 @@ import { CheckCircle2 } from "lucide-react";
 import { AppHeader } from "@/shared/ui/AppHeader";
 import { buttonVariants } from "@/shared/ui/button";
 import { cn } from "@/lib/utils";
+import { formatPrice } from "@/shared/utils/formatPrice";
 import type { OrderCompleteState } from "./types";
 import { OrderItems } from "./components/OrderItems";
-
-function formatPrice(v: number): string {
-  return `${v.toLocaleString("ko-KR")}원`;
-}
 
 export default function OrderCompletePage() {
   const location = useLocation();

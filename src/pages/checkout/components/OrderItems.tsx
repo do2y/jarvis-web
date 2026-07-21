@@ -1,8 +1,5 @@
+import { formatPrice } from "@/shared/utils/formatPrice";
 import type { CheckoutItem } from "../types";
-
-function formatPrice(v: number): string {
-  return `${v.toLocaleString("ko-KR")}원`;
-}
 
 // 주문 상품 목록 — 이미지·브랜드·이름·선택옵션·수량·가격.
 export function OrderItems({ items }: { items: CheckoutItem[] }) {

@@ -1,25 +1,17 @@
 import { Heart, ShoppingCart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { formatPrice } from "@/shared/utils/formatPrice";
+import { useAddCartItem } from "@/shared/hooks/useCart";
+import { useGoToProduct } from "@/shared/hooks/useGoToProduct";
 import { useRemoveWishlistItem } from "../useWishlist";
 import type { WishlistProduct } from "@/shared/types/wishlist";
 
 export function WishlistCard({ product }: { product: WishlistProduct }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const remove = useRemoveWishlistItem();
+  const addCart = useAddCartItem();
+  const goToProduct = useGoToProduct();
 
-  const goToDetail = () => {
-    queryClient.setQueryData(["products", product.productId], {
-      productId: product.productId,
-      name: product.name,
-      brandName: product.brandName,
-      price: product.price,
-      imageUrl: product.imageUrl,
-    });
-    navigate(`/products/${product.productId}`);
-  };
+  // WishlistProduct는 시딩 계약을 전부 갖고 있어 그대로 승계한다.
+  const goToDetail = () => goToProduct(product);
 
   return (
     <article className="group flex h-full flex-col">
@@ -64,13 +56,34 @@ export function WishlistCard({ product }: { product: WishlistProduct }) {
         </span>
       </button>
 
+      {/* 담기 — 판매 중지(HIDDEN) 상품은 서버가 거부하므로 버튼을 비활성화한다.
+          옵션 필수 상품은 서버 400 사유를 그대로 안내(카드에는 옵션 선택 UI가 없음). */}
       <button
         type="button"
-        className="mt-3 inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border text-sm font-medium transition-all hover:bg-muted active:scale-[0.98]"
+        onClick={() =>
+          addCart.mutate({ productId: product.productId, quantity: 1 })
+        }
+        disabled={!product.purchasable || addCart.isPending}
+        className="mt-3 inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border text-sm font-medium transition-all hover:bg-muted active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
       >
         <ShoppingCart className="size-4" />
-        장바구니 담기
+        {!product.purchasable
+          ? "판매 중지"
+          : addCart.isPending
+            ? "담는 중…"
+            : "장바구니 담기"}
       </button>
+
+      {addCart.isSuccess && (
+        <p className="mt-2 text-xs text-muted-foreground" role="status">
+          장바구니에 담았어요.
+        </p>
+      )}
+      {addCart.errorMessage && (
+        <p className="mt-2 text-xs text-destructive" role="alert">
+          {addCart.errorMessage}
+        </p>
+      )}
     </article>
   );
 }

@@ -1,17 +1,20 @@
 import { Star } from "lucide-react";
+import { useGoToProduct } from "@/shared/hooks/useGoToProduct";
 import type { PopularProduct } from "../types";
 import { formatPrice } from "@/shared/utils/formatPrice";
 
 export function ProductCard({ product }: { product: PopularProduct }) {
+  const goToProduct = useGoToProduct();
   const hasDiscount = product.originalPrice > product.price;
   const discountRate = hasDiscount
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
 
   return (
-    // TODO: 클릭 시 상품 상세로 이동 + 카드 데이터를 setQueryData(['products', id])로 시딩
     <button
       type="button"
+      onClick={() => goToProduct(product)}
+      aria-label={`${product.name} 상세 보기`}
       className="group flex flex-col overflow-hidden rounded-sm border bg-background text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md active:translate-y-0 active:scale-[0.99]"
     >
       <div className="aspect-[4/3] overflow-hidden bg-muted">

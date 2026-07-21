@@ -5,7 +5,10 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Dialog, DialogContent, DialogTitle } from "@/shared/ui/dialog";
-import { addressSchema, type AddressValues } from "@/shared/ui/addressSchema";
+import {
+  addressSchema,
+  type AddressValues,
+} from "@/shared/address/addressSchema";
 import type { Address } from "@/shared/types/address";
 
 const EMPTY: AddressValues = {
@@ -18,6 +21,7 @@ const EMPTY: AddressValues = {
 };
 
 // 배송지 추가·수정 모달 — RHF + Zod. 결제·마이페이지가 공유한다.
+// 도메인(배송지)을 아는 폼이라 순수 UI 계층(shared/ui)이 아닌 shared/address에 둔다.
 // 저장 성공 여부는 상위가 판단하므로 여기선 값만 올린다(실패 시 열어둔 채 error 표시).
 export function AddressFormModal({
   open,

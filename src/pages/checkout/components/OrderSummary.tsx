@@ -1,9 +1,6 @@
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/shared/ui/button";
-
-function formatPrice(v: number): string {
-  return `${v.toLocaleString("ko-KR")}원`;
-}
+import { formatPrice } from "@/shared/utils/formatPrice";
 
 // 결제 금액 요약 + 결제 버튼. 넓은 화면에선 우측 sticky.
 export function OrderSummary({

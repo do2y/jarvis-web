@@ -16,12 +16,11 @@ import { PAYMENT_METHODS } from "./placeholder";
 import { useCreateOrder, useRetryPayment } from "./useCreateOrder";
 import {
   useAddresses,
-  useCreateAddress,
-  useUpdateAddress,
-} from "./useAddresses";
+  useAddressMutations,
+} from "@/shared/hooks/useAddresses";
 import { OrderItems } from "./components/OrderItems";
 import { ShippingSection } from "./components/ShippingSection";
-import { AddressFormModal } from "@/shared/ui/AddressFormModal";
+import { AddressFormModal } from "@/shared/address/AddressFormModal";
 import { PaymentSection } from "./components/PaymentSection";
 import { OrderSummary } from "./components/OrderSummary";
 
@@ -33,8 +32,7 @@ export default function CheckoutPage() {
   const items = useMemo(() => state?.items ?? [], [state]);
 
   const { data: addresses = [] } = useAddresses();
-  const createAddress = useCreateAddress();
-  const updateAddress = useUpdateAddress();
+  const { add: createAddress, update: updateAddress } = useAddressMutations();
 
   // 선택된 배송지. null이면 기본 배송지(없으면 첫 항목)를 따른다 —
   // 목록 로딩 전에는 값을 정할 수 없어 사용자가 고르기 전까지 파생값을 쓴다.

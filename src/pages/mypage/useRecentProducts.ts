@@ -8,7 +8,8 @@ export function useRecentProducts() {
   const isAuthed = useAuthStore((s) => s.accessToken !== null);
 
   return useQuery({
-    queryKey: ["recentProducts"],
+    // 키 컨벤션(소문자 배열 세그먼트) 통일 — 엔드포인트 /api/products/recent와 대응
+    queryKey: ["products", "recent"],
     queryFn: fetchRecentProducts,
     staleTime: 0,
     enabled: isAuthed,

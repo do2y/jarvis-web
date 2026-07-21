@@ -1,26 +1,12 @@
-import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { formatPrice } from "@/shared/utils/formatPrice";
+import { useGoToProduct } from "@/shared/hooks/useGoToProduct";
 import type { RecentProduct } from "../types";
 
 export function RecentProductCard({ product }: { product: RecentProduct }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const goToProduct = useGoToProduct();
 
   // 카드가 상세 렌더에 필요한 값을 모두 갖고 있어 그대로 시딩한다(부족분만 백그라운드 페칭).
-  const goToDetail = () => {
-    queryClient.setQueryData(["products", product.productId], {
-      productId: product.productId,
-      name: product.name,
-      brandName: product.brandName,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      imageUrl: product.imageUrl,
-      rating: product.rating,
-      reviewCount: product.reviewCount,
-    });
-    navigate(`/products/${product.productId}`);
-  };
+  const goToDetail = () => goToProduct(product);
 
   return (
     <button

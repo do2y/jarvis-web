@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { useAddresses, useAddressMutations } from "./useAddresses";
+import { useAddresses, useAddressMutations } from "@/shared/hooks/useAddresses";
 import { AddressCard } from "./components/AddressCard";
-import { AddressFormModal } from "@/shared/ui/AddressFormModal";
-import type { AddressValues } from "@/shared/ui/addressSchema";
+import { AddressFormModal } from "@/shared/address/AddressFormModal";
+import type { AddressValues } from "@/shared/address/addressSchema";
 import { PageTitle, ErrorState } from "./components/PageState";
 import type { Address } from "@/shared/types/address";
 
@@ -27,8 +27,10 @@ function AddressesSkeleton() {
 
 export default function AddressesPage() {
   const { data: addresses, isPending, isError, refetch } = useAddresses();
-  const { add, update, remove, setDefault, errorMessage } =
-    useAddressMutations();
+  const { add, update, remove, setDefault } = useAddressMutations();
+
+  // 삭제·기본 지정 실패는 모달 밖(목록 위)에서, 추가·수정 실패는 모달 안에서 안내한다.
+  const listError = remove.errorMessage ?? setDefault.errorMessage;
 
   // 모달 상태 — editing 있으면 수정, null이면 추가(open으로 구분).
   const [open, setOpen] = useState(false);
@@ -80,9 +82,9 @@ export default function AddressesPage() {
           <div className="flex flex-col gap-4">
             {/* 삭제·기본 지정 실패는 모달 밖에서 일어나므로 목록 위에 안내한다
                 (유일한 배송지 삭제 등) */}
-            {(remove.error || setDefault.error) && errorMessage && (
+            {listError && (
               <p className="text-sm text-destructive" role="alert">
-                {errorMessage}
+                {listError}
               </p>
             )}
 
@@ -117,7 +119,7 @@ export default function AddressesPage() {
         editing={editing}
         onSubmit={handleSubmit}
         submitting={add.isPending || update.isPending}
-        error={add.error || update.error ? errorMessage : null}
+        error={add.errorMessage ?? update.errorMessage}
       />
     </div>
   );

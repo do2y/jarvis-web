@@ -1,3 +1,5 @@
+import { formatPrice } from "@/shared/utils/formatPrice";
+
 interface RecommendItem {
   productId: number;
   name: string;
@@ -5,10 +7,6 @@ interface RecommendItem {
   price: number;
   imageUrl: string;
   reason?: string; // 대체 상품 추천 이유 (Jarvis 추천)
-}
-
-function formatPrice(v: number): string {
-  return `${v.toLocaleString("ko-KR")}원`;
 }
 
 // 함께 구매/대체 상품 가로 스크롤 목록. reason 있으면 Jarvis 추천 스타일(좌측 이미지+이유).
