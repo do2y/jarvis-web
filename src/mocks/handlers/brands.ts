@@ -187,6 +187,9 @@ const DESCENT_PRODUCTS: SeedProduct[] = [
 
 const BRANDS: Record<number, { brand: Brand; products: SeedProduct[] }> = {
   3: { brand: DESCENT, products: DESCENT_PRODUCTS },
+  // 상품 상세 목이 brand.id=1을 내려주므로(catalog.ts), 상세 → 브랜드 홈 이동이
+  // 목 환경에서도 404로 끊기지 않게 같은 데이터를 1번에도 매핑해 둔다.
+  1: { brand: { ...DESCENT, id: 1 }, products: DESCENT_PRODUCTS },
 };
 
 // 응답 계약에 없는 목 전용 필드(categoryId·createdAt·salesRank)를 벗긴다

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Heart, Star } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ChevronRight, Heart, Star } from "lucide-react";
 import { track } from "@/shared/analytics/track";
 import { useIsWished, useToggleWishlist } from "@/shared/hooks/useWishlist";
 import { cn } from "@/lib/utils";
@@ -217,9 +217,19 @@ export default function ProductPage() {
 
           <div className="flex flex-1 flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                {view.brandName}
-              </p>
+              {/* brand.id는 상세 응답에만 있다 — 시딩만으로 렌더 중이면 이동할 곳을 몰라 텍스트로 둔다 */}
+              {detail ? (
+                <Link
+                  to={`/brands/${detail.brand.id}`}
+                  className="w-fit text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  {view.brandName}
+                </Link>
+              ) : (
+                <p className="text-sm font-medium text-muted-foreground">
+                  {view.brandName}
+                </p>
+              )}
               <h1 className="text-xl font-bold leading-snug sm:text-2xl">
                 {view.name}
               </h1>
@@ -352,23 +362,34 @@ export default function ProductPage() {
           variant="reason"
         />
 
-        {/* 브랜드 배너 */}
-        <section className="flex items-center justify-between rounded-sm border bg-muted/30 p-5">
-          <div className="flex items-center gap-3">
+        {/* 브랜드 배너 — 로고·이름·버튼이 전부 같은 목적지라 배너 전체를 하나의 링크로 둔다.
+            brand.id는 상세 응답에만 있어 시딩만으로 렌더 중이면 링크 없이 정보만 보여준다. */}
+        {detail ? (
+          <Link
+            to={`/brands/${detail.brand.id}`}
+            className="flex items-center justify-between rounded-sm border bg-muted/30 p-5 transition-colors hover:bg-muted/60"
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                {view.brandName.slice(0, 1)}
+              </span>
+              {/* 상세 응답의 brand에는 소개 문구가 없다(id·name·logoUrl뿐) —
+                  브랜드마다 다른 설명을 지어낼 수 없으므로 이름만 보여준다 */}
+              <span className="text-sm font-bold">{view.brandName}</span>
+            </span>
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              브랜드 홈
+              <ChevronRight className="size-4" />
+            </span>
+          </Link>
+        ) : (
+          <section className="flex items-center gap-3 rounded-sm border bg-muted/30 p-5">
             <span className="flex size-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
               {view.brandName.slice(0, 1)}
             </span>
-            <div className="flex flex-col">
-              <p className="text-sm font-bold">{view.brandName}</p>
-              <p className="text-xs text-muted-foreground">
-                컨템포러리 패션 브랜드
-              </p>
-            </div>
-          </div>
-          <Button variant="ghost" className="h-9">
-            브랜드 홈
-          </Button>
-        </section>
+            <p className="text-sm font-bold">{view.brandName}</p>
+          </section>
+        )}
       </main>
     </div>
   );
