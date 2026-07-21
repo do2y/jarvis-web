@@ -1,26 +1,20 @@
 import { Heart, ShoppingCart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useIsWished, useToggleWishlist } from "@/shared/hooks/useWishlist";
+import { useAddCartItem } from "@/shared/hooks/useCart";
+import { useGoToProduct } from "@/shared/hooks/useGoToProduct";
+import { formatPrice } from "@/shared/utils/formatPrice";
 import type { ProductCard } from "@/shared/types/chat";
-
-function formatPrice(v: number): string {
-  return `${v.toLocaleString("ko-KR")}원`;
-}
 
 export function ChatProductCard({ product }: { product: ProductCard }) {
   // 찜 상태는 서버 목록에서 파생 — 로컬 토글이면 새로고침·다른 화면과 어긋난다.
   const wished = useIsWished(product.productId);
   const { toggle, isPending } = useToggleWishlist();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const addCart = useAddCartItem();
+  const goToProduct = useGoToProduct();
   const hasDiscount = product.originalPrice > product.price;
 
-  const goToDetail = () => {
-    queryClient.setQueryData(["products", product.productId], product);
-    navigate(`/products/${product.productId}`);
-  };
+  const goToDetail = () => goToProduct(product);
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-sm border bg-background transition-shadow duration-200 hover:shadow-md">
@@ -89,15 +83,31 @@ export function ChatProductCard({ product }: { product: ProductCard }) {
             )}
           </div>
 
-          {/* TODO: 장바구니 API·훅 연결 시 담기 처리 + invalidate(['cart']) */}
+          {/* 담기 — 옵션이 필요한 상품은 서버가 400(CART_OPTION_REQUIRED)으로 알려주므로
+              카드에서는 기본 1개 담기만 시도하고 실패 사유를 안내한다. 자동 재시도 없음. */}
           <button
             type="button"
+            onClick={() =>
+              addCart.mutate({ productId: product.productId, quantity: 1 })
+            }
+            disabled={addCart.isPending}
             aria-label="장바구니에 담기"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-90"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-90 disabled:opacity-50"
           >
             <ShoppingCart className="size-4" />
           </button>
         </div>
+
+        {addCart.isSuccess && (
+          <p className="text-xs text-muted-foreground" role="status">
+            장바구니에 담았어요.
+          </p>
+        )}
+        {addCart.errorMessage && (
+          <p className="text-xs text-destructive" role="alert">
+            {addCart.errorMessage}
+          </p>
+        )}
       </div>
     </div>
   );

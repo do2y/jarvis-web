@@ -1,24 +1,16 @@
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { formatPrice } from "@/shared/utils/formatPrice";
 import { useCartRecommendations } from "../useCart";
 
 export function CartRecommendations() {
   const { data: items } = useCartRecommendations();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   if (!items || items.length === 0) return null;
 
-  const goToDetail = (productId: number, seed: (typeof items)[number]) => {
-    // 캐시 승계: 카드 데이터를 상세 캐시에 부분 시딩 → 부족분은 상세 API가 채움.
-    queryClient.setQueryData(["products", productId], {
-      productId,
-      name: seed.name,
-      brandName: seed.brand,
-      price: seed.price,
-      imageUrl: seed.imageUrl,
-    });
+  // 추천 응답에는 평점·정가가 없어 시딩 계약(SeededProductCard)을 못 채운다.
+  // 불완전 시딩은 상세 렌더를 깨뜨리므로 시딩 없이 이동만 한다(상세는 스켈레톤 표시).
+  const goToDetail = (productId: number) => {
     navigate(`/products/${productId}`);
   };
 
@@ -30,7 +22,7 @@ export function CartRecommendations() {
           <button
             key={item.productId}
             type="button"
-            onClick={() => goToDetail(item.productId, item)}
+            onClick={() => goToDetail(item.productId)}
             aria-label={`${item.name} 상세 보기`}
             className="group flex flex-col text-left"
           >

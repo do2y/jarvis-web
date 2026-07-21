@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ProductCard } from "@/shared/types/chat";
+import type { SeededProductCard } from "@/shared/types/product";
 import { fetchProductDetail, fetchProductReviews } from "./api";
 import type { ProductReviewPage, ReviewSort } from "./types";
 
@@ -49,8 +49,9 @@ export function useProductReviews(
 
 // 카드 시딩 데이터 — 상세 도착 전 즉시 렌더용(캐시 승계).
 // queryFn이 없어 네트워크 요청을 만들지 않고, 시딩된 값이 있으면 그것만 읽는다.
+// 시딩은 useGoToProduct(shared/hooks)만 거치므로 값은 항상 SeededProductCard 완전체다.
 export function useSeededProductCard(id: number) {
-  return useQuery<ProductCard>({
+  return useQuery<SeededProductCard>({
     queryKey: ["products", id],
     enabled: Number.isFinite(id),
     staleTime: FIVE_MIN,

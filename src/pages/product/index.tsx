@@ -8,8 +8,9 @@ import { AppHeader } from "@/shared/ui/AppHeader";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useAuthStore } from "@/shared/stores/authStore";
-import type { CheckoutState } from "@/pages/checkout/types";
-import { useAddCartItem } from "@/pages/cart/useCart";
+import type { CheckoutState } from "@/shared/types/checkout";
+import { useAddCartItem } from "@/shared/hooks/useCart";
+import { formatPrice } from "@/shared/utils/formatPrice";
 import { ImageGallery } from "./components/ImageGallery";
 import { OptionSelector, type OptionSelection } from "./components/OptionSelector";
 import { SpecTable } from "./components/SpecTable";
@@ -22,10 +23,6 @@ import {
   useSeededProductCard,
 } from "./useProduct";
 import type { ReviewSort } from "./types";
-
-function formatPrice(v: number): string {
-  return `${v.toLocaleString("ko-KR")}원`;
-}
 
 export default function ProductPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -141,8 +138,6 @@ export default function ProductPage() {
       }))
     : [];
 
-  const user = useAuthStore.getState().user;
-
   // HIDDEN·품절 상품도 200으로 조회된다(직링크·찜 목록 대응) → purchasable로 구매 차단.
   // 상세 도착 전(시딩 렌더)에는 아직 알 수 없으므로 구매 가능으로 둔다.
   const purchasable = detail ? detail.purchasable : true;
@@ -180,6 +175,8 @@ export default function ProductPage() {
     if (!purchasable) return;
     // 구매는 로그인 필요(CLAUDE.md). 게스트면 현재 상세로 복귀하도록 returnUrl 걸어 로그인 유도.
     // (state는 리다이렉트로 유실되므로 로그인 후 상세에서 다시 "바로 구매"하게 한다.)
+    // 클릭 시점 값이면 충분해 구독 없이 getState로 읽는다(렌더 중 비구독 읽기 방지).
+    const { user } = useAuthStore.getState();
     if (!user) {
       const returnUrl = encodeURIComponent(`/products/${id}`);
       navigate(`/login?returnUrl=${returnUrl}`);

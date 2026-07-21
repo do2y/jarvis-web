@@ -1,3 +1,5 @@
+import type { SeededProductCard } from "@/shared/types/product";
+
 /** 채팅 API 계약 타입 — 백엔드/LLM 스키마(07-07 기준)와 1:1. 변경 시 계약 문서와 함께 갱신 */
 export type ChatChannel = "SHOPPING" | "CS" | "SELLER";
 
@@ -21,15 +23,8 @@ export interface ChatRequest {
   screen?: ChatScreenContext; // 사이드 채팅에서만 전송
 }
 
-export interface ProductCard {
-  productId: number;
-  name: string;
-  brandName: string;
-  price: number;
-  originalPrice: number;
-  imageUrl: string;
-  rating: number;
-  reviewCount: number;
+// 시딩 계약(SeededProductCard)에 AI 추천 이유만 더한 형태 — 상세 캐시 승계 호환 유지
+export interface ProductCard extends SeededProductCard {
   reason: string; // AI 추천 이유 한 줄
 }
 

@@ -10,6 +10,7 @@ import { CartItemCard } from "./components/CartItemCard";
 import { CartSummary } from "./components/CartSummary";
 import { CartRecommendations } from "./components/CartRecommendations";
 import type { CartItem } from "./types";
+import type { CheckoutItem, CheckoutState } from "@/shared/types/checkout";
 
 function CartSkeleton() {
   return (
@@ -107,7 +108,7 @@ export default function CartPage() {
   // 선택 상품을 결제 화면 계약(CheckoutState)에 맞춰 넘긴다.
   const goToCheckout = () => {
     if (selectedItems.length === 0) return;
-    const checkoutItems = selectedItems.map((it: CartItem) => ({
+    const checkoutItems: CheckoutItem[] = selectedItems.map((it: CartItem) => ({
       product: {
         productId: it.productId,
         name: it.name,
@@ -123,7 +124,9 @@ export default function CartPage() {
       optionName: it.optionName,
       quantity: it.quantity,
     }));
-    navigate("/checkout", { state: { items: checkoutItems } });
+    navigate("/checkout", {
+      state: { items: checkoutItems } satisfies CheckoutState,
+    });
   };
 
   return (
