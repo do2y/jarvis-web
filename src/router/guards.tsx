@@ -35,3 +35,15 @@ export function RequireRole({ role }: { role: 'SELLER' | 'ADMIN' }) {
   if (user.role !== role) return <Navigate to="/" replace />;
   return <Outlet />;
 }
+
+/**
+ * 판매자를 쇼핑몰(구매자) 라우트에서 격리하는 가드.
+ * 판매자는 /seller/* 밖으로 나가면 안 되므로, 그 밖의 라우트에 오면 대시보드로 돌려보낸다.
+ * (게스트·일반 회원·관리자는 그대로 통과 — SELLER만 걸러낸다.)
+ */
+export function BlockSeller() {
+  const { user, isRestoring } = useAuthGate();
+  if (isRestoring) return null;
+  if (user?.role === 'SELLER') return <Navigate to="/seller" replace />;
+  return <Outlet />;
+}

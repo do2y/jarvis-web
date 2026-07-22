@@ -17,6 +17,16 @@ function safeReturnUrl(raw: string | null): string {
   return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
 }
 
+// 로그인 후 목적지. 판매자는 쇼핑몰 라우트에서 격리되므로(가드 BlockSeller),
+// returnUrl이 있어도 /seller 밖이면 무시하고 대시보드로 보낸다 — 안 그러면
+// 그 경로로 갔다가 가드에 걸려 다시 /seller로 튕겨 깜빡인다.
+function postLoginDest(role: AuthResponse["member"]["role"], returnUrl: string) {
+  if (role === "SELLER") {
+    return returnUrl.startsWith("/seller") ? returnUrl : "/seller";
+  }
+  return returnUrl;
+}
+
 // 로그인·회원가입이 같은 성공 처리를 쓰되, 수집 이벤트에서는 구분해야 해서 인자로 받는다.
 function useAuthSuccess(method: "login" | "signup") {
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -29,7 +39,8 @@ function useAuthSuccess(method: "login" | "signup") {
     // 8종 화이트리스트에 signup이 없어 가입(자동 로그인)도 login으로 보내고
     // 구분은 properties.method로 남긴다. 개인정보는 싣지 않는다(명세).
     track("login", { properties: { method, role: res.member.role } });
-    navigate(safeReturnUrl(params.get("returnUrl")), { replace: true });
+    const returnUrl = safeReturnUrl(params.get("returnUrl"));
+    navigate(postLoginDest(res.member.role, returnUrl), { replace: true });
   };
 }
 

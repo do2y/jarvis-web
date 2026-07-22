@@ -6,7 +6,7 @@ import {
   useNavigationType,
 } from 'react-router-dom';
 import { track } from '@/shared/analytics/track';
-import { RequireAuth, RequireRole } from './guards';
+import { BlockSeller, RequireAuth, RequireRole } from './guards';
 
 // 페이지 단위 코드 스플리팅 (lazy)
 const AuthPage = lazy(() => import('@/pages/auth'));
@@ -55,24 +55,32 @@ export const router = createBrowserRouter([
   {
     element: <Root />,
     children: [
-      // ── 공개 라우트 (게스트 접근 가능) ──
-      { path: '/', element: <HomePage /> },
-      { path: '/chat', element: <ChatPage /> }, // 챗봇: 게스트도 사용 가능
+      // 로그인·가입은 판매자도 접근해야 하므로 BlockSeller 밖에 둔다.
       { path: '/login', element: <AuthPage /> },
       { path: '/signup', element: <AuthPage /> },
-      { path: '/products/:productId', element: <ProductPage /> },
-      { path: '/brands/:brandId', element: <BrandPage /> },
-      { path: '/inquiry', element: <InquiryPage /> }, // 문의 챗봇: 게스트는 일반 안내만
-      { path: '/cart', element: <CartPage /> }, // 장바구니: 게스트도 담기·조회 가능(구매만 로그인)
-      { path: '/wishlist', element: <WishlistPage /> }, // 게스트는 로그인 유도 화면, 회원은 마이페이지 찜으로
 
-      // ── 회원 전용 ──
+      // ── 쇼핑몰(구매자) 라우트 — 판매자는 격리해 /seller로 돌려보낸다 ──
       {
-        element: <RequireAuth />,
+        element: <BlockSeller />,
         children: [
-          { path: '/checkout', element: <CheckoutPage /> },
-          { path: '/checkout/complete', element: <OrderCompletePage /> },
-          { path: '/mypage/*', element: <MyPage /> },
+          // 공개 라우트 (게스트 접근 가능)
+          { path: '/', element: <HomePage /> },
+          { path: '/chat', element: <ChatPage /> }, // 챗봇: 게스트도 사용 가능
+          { path: '/products/:productId', element: <ProductPage /> },
+          { path: '/brands/:brandId', element: <BrandPage /> },
+          { path: '/inquiry', element: <InquiryPage /> }, // 문의 챗봇: 게스트는 일반 안내만
+          { path: '/cart', element: <CartPage /> }, // 장바구니: 게스트도 담기·조회 가능(구매만 로그인)
+          { path: '/wishlist', element: <WishlistPage /> }, // 게스트는 로그인 유도 화면, 회원은 마이페이지 찜으로
+
+          // 회원 전용
+          {
+            element: <RequireAuth />,
+            children: [
+              { path: '/checkout', element: <CheckoutPage /> },
+              { path: '/checkout/complete', element: <OrderCompletePage /> },
+              { path: '/mypage/*', element: <MyPage /> },
+            ],
+          },
         ],
       },
 
