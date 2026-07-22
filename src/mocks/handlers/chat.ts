@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { BASE } from "../shared";
+import { BASE, ok } from "../shared";
 
 // ── SELLER 채널 목 (shared/types/chat.ts 판매자 이벤트 계약) ──
 // 상품명·이미지는 MOCK_CHAT_PRODUCTS와 맞춰 화면 간 일관성 유지
@@ -97,140 +97,67 @@ const MOCK_CHAT_PRODUCTS = [
   },
 ];
 
+// SSE 공통 유틸 — 와이어 포맷 `data: {"type":..., "data":{...}}` 한 줄(event: 라인 없음).
+const sseEncoder = new TextEncoder();
+const sse = (type: string, data: unknown) =>
+  sseEncoder.encode(`data: ${JSON.stringify({ type, data })}\n\n`);
+
+const respondSse = (stream: ReadableStream) =>
+  new HttpResponse(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+    },
+  });
+
+const streamWords = async (
+  controller: ReadableStreamDefaultController,
+  text: string,
+) => {
+  for (const word of text.split(" ")) {
+    controller.enqueue(sse("token", { text: word + " " }));
+    await new Promise((r) => setTimeout(r, 40));
+  }
+};
+
 export const chatHandlers = [
-  // 채팅 (SSE) — 3개 챗봇이 channel만 바꿔 공유하는 단일 엔드포인트.
-  // 와이어 포맷: `data: {"type":..., "data":{...}}` 한 줄(구매자·판매자 공통). event: 라인 없음.
+  // ── 세션·티켓 발급 (SSE 진입 전) — 공통 응답 봉투 { success, data } ──
+  // 실제로는 로그인 AT 를 검증해 단명 streamTicket 을 발급하지만, 목은 고정값을 준다.
+  // llmSseUrl 은 아래 스트림 목 경로를 그대로 가리켜 목 흐름이 이어지게 한다.
+
+  // 판매자 세션 — POST /api/chat/seller/sessions (SELLER 전용, body 없음)
+  http.post(`${BASE}/api/chat/seller/sessions`, () => {
+    return HttpResponse.json(
+      ok({
+        sessionId: crypto.randomUUID(),
+        ttlSeconds: 600,
+        streamTicket: "mock-seller-ticket",
+        ticketTtlSeconds: 60,
+        llmSseUrl: `${BASE}/seller/chat`,
+      }),
+    );
+  }),
+
+  // 구매자 세션 — POST /api/chat/sessions (channel: SHOPPING|CS)
+  http.post(`${BASE}/api/chat/sessions`, () => {
+    return HttpResponse.json(
+      ok({
+        sessionId: crypto.randomUUID(),
+        ttlSeconds: 600,
+        streamTicket: "mock-chat-ticket",
+        ticketTtlSeconds: 60,
+        llmSseUrl: `${BASE}/api/chat`,
+      }),
+    );
+  }),
+
+  // ── 구매자 챗 (SHOPPING/CS) — POST /api/chat ──
   http.post(`${BASE}/api/chat`, async ({ request }) => {
-    const body = (await request.json()) as {
-      message?: string;
-      channel?: "SHOPPING" | "CS" | "SELLER";
-      action?: "confirm";
-      draftId?: string;
-      screen?: {
-        path: string;
-        label: string;
-        filters?: Record<string, string>;
-      };
-    };
-    const encoder = new TextEncoder();
-
-    // payload 의 type 으로 이벤트를 구분한다(계약 v2)
-    const sse = (type: string, data: unknown) =>
-      encoder.encode(`data: ${JSON.stringify({ type, data })}\n\n`);
-
-    const isSeller = body.channel === "SELLER";
+    const body = (await request.json()) as { message?: string };
     const message = body.message ?? "";
 
-    const respond = (stream: ReadableStream) =>
-      new HttpResponse(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-        },
-      });
-
-    const streamWords = async (
-      controller: ReadableStreamDefaultController,
-      text: string,
-    ) => {
-      for (const word of text.split(" ")) {
-        controller.enqueue(sse("token", { text: word + " " }));
-        await new Promise((r) => setTimeout(r, 40));
-      }
-    };
-
-    // ── 판매자 채널 (계약 v2: meta → progress? → token/draft → done{panel}) ──
-    if (isSeller) {
-      // (b) 승인 요청 — 발화가 아니라 최상위 action/draftId 로 온다
-      if (body.action === "confirm") {
-        return respond(
-          new ReadableStream({
-            async start(controller) {
-              controller.enqueue(sse("meta", { lane: "confirm" }));
-              await streamWords(
-                controller,
-                "가격을 78,000원으로 변경하고 재고를 40개로 보충했어요.",
-              );
-              // 실제 반영 → refresh(우측 목록 재조회)
-              controller.enqueue(
-                sse("done", { finishReason: "stop", panel: "refresh" }),
-              );
-              controller.close();
-            },
-          }),
-        );
-      }
-
-      // 발화 의도 분기 — 목에선 키워드로 단순 판별(실제는 LLM 라우팅)
-      const isEditIntent = /수정|변경|할인|가격|바꿔|올려|내려|재고/.test(message);
-      const isRefused = /날씨|주식|번역|레시피/.test(message);
-
-      if (isRefused) {
-        return respond(
-          new ReadableStream({
-            async start(controller) {
-              controller.enqueue(sse("meta", { lane: "refused" }));
-              await streamWords(
-                controller,
-                "판매 운영과 관련된 질문에만 답변드릴 수 있어요.",
-              );
-              controller.enqueue(
-                sse("done", { finishReason: "stop", panel: "keep" }),
-              );
-              controller.close();
-            },
-          }),
-        );
-      }
-
-      if (isEditIntent) {
-        // 상품 상세 수정 제안 → draft (그래프 interrupt, 우측 패널 교체)
-        return respond(
-          new ReadableStream({
-            async start(controller) {
-              controller.enqueue(sse("meta", { lane: "product" }));
-              await streamWords(
-                controller,
-                "요청하신 수정 내용을 정리했어요. 변경 전후를 확인하고 적용해 주세요.",
-              );
-              controller.enqueue(sse("draft", MOCK_SELLER_DRAFT));
-              controller.enqueue(
-                sse("done", { finishReason: "stop", panel: "replace" }),
-              );
-              controller.close();
-            },
-          }),
-        );
-      }
-
-      // 통계 Q&A — progress(분석 로딩) 후 자연어 token. 결과 카드 없음(패널 유지)
-      const where = body.screen?.filters?.["상태"];
-      const scope =
-        body.screen && where && where !== "전체"
-          ? `${body.screen.label}의 '${where}' 화면 기준으로 `
-          : "";
-      return respond(
-        new ReadableStream({
-          async start(controller) {
-            controller.enqueue(sse("meta", { lane: "analysis" }));
-            controller.enqueue(sse("progress", { text: "매출·주문 분석 중…" }));
-            await new Promise((r) => setTimeout(r, 500));
-            await streamWords(
-              controller,
-              `${scope}지난주 매출은 전주 대비 12% 감소했어요. 주말 유입이 많으니 금요일 저녁 프로모션을 추천드려요.`,
-            );
-            controller.enqueue(
-              sse("done", { finishReason: "stop", panel: "keep" }),
-            );
-            controller.close();
-          },
-        }),
-      );
-    }
-
-    // ── 구매자 채널 (SHOPPING/CS) ──
     const answer = `"${message}"에 맞는 상품을 찾았어요. 조건을 더 좁히고 싶으시면 말씀해 주세요.`;
-    return respond(
+    return respondSse(
       new ReadableStream({
         async start(controller) {
           await streamWords(controller, answer);
@@ -243,6 +170,108 @@ export const chatHandlers = [
             }),
           );
           controller.enqueue(sse("done", { finishReason: "stop" }));
+          controller.close();
+        },
+      }),
+    );
+  }),
+
+  // ── 판매자 챗 — POST /seller/chat (계약 v2: meta → progress? → token/draft → done{panel}) ──
+  // 신원은 JWT 클레임에서만 도출되므로 body 에 channel·brandId·userId 가 없다(계약 §2.1).
+  http.post(`${BASE}/seller/chat`, async ({ request }) => {
+    const body = (await request.json()) as {
+      message?: string;
+      action?: "confirm";
+      draftId?: string;
+      screen?: {
+        path: string;
+        label: string;
+        filters?: Record<string, string>;
+      };
+    };
+    const message = body.message ?? "";
+
+    // (b) 승인 요청 — 발화가 아니라 최상위 action/draftId 로 온다
+    if (body.action === "confirm") {
+      return respondSse(
+        new ReadableStream({
+          async start(controller) {
+            controller.enqueue(sse("meta", { lane: "confirm" }));
+            await streamWords(
+              controller,
+              "가격을 78,000원으로 변경하고 재고를 40개로 보충했어요.",
+            );
+            // 실제 반영 → refresh(우측 목록 재조회)
+            controller.enqueue(
+              sse("done", { finishReason: "stop", panel: "refresh" }),
+            );
+            controller.close();
+          },
+        }),
+      );
+    }
+
+    // 발화 의도 분기 — 목에선 키워드로 단순 판별(실제는 LLM 라우팅)
+    const isEditIntent = /수정|변경|할인|가격|바꿔|올려|내려|재고/.test(message);
+    const isRefused = /날씨|주식|번역|레시피/.test(message);
+
+    if (isRefused) {
+      return respondSse(
+        new ReadableStream({
+          async start(controller) {
+            controller.enqueue(sse("meta", { lane: "refused" }));
+            await streamWords(
+              controller,
+              "판매 운영과 관련된 질문에만 답변드릴 수 있어요.",
+            );
+            controller.enqueue(
+              sse("done", { finishReason: "stop", panel: "keep" }),
+            );
+            controller.close();
+          },
+        }),
+      );
+    }
+
+    if (isEditIntent) {
+      // 상품 상세 수정 제안 → draft (그래프 interrupt, 우측 패널 교체)
+      return respondSse(
+        new ReadableStream({
+          async start(controller) {
+            controller.enqueue(sse("meta", { lane: "product" }));
+            await streamWords(
+              controller,
+              "요청하신 수정 내용을 정리했어요. 변경 전후를 확인하고 적용해 주세요.",
+            );
+            controller.enqueue(sse("draft", MOCK_SELLER_DRAFT));
+            controller.enqueue(
+              sse("done", { finishReason: "stop", panel: "replace" }),
+            );
+            controller.close();
+          },
+        }),
+      );
+    }
+
+    // 통계 Q&A — progress(분석 로딩) 후 자연어 token. 결과 카드 없음(패널 유지)
+    const where = body.screen?.filters?.["상태"];
+    const scope =
+      body.screen && where && where !== "전체"
+        ? `${body.screen.label}의 '${where}' 화면 기준으로 `
+        : "";
+    return respondSse(
+      new ReadableStream({
+        async start(controller) {
+          controller.enqueue(sse("meta", { lane: "analysis" }));
+          controller.enqueue(sse("progress", { text: "매출·주문 분석 중…" }));
+          await new Promise((r) => setTimeout(r, 500));
+          await streamWords(
+            controller,
+            `${scope}지난주 매출은 전주 대비 12% 감소했어요. 주말 유입이 많으니 금요일 저녁 프로모션을 추천드려요.`,
+          );
+          controller.enqueue(
+            sse("done", { finishReason: "stop", panel: "keep" }),
+          );
           controller.close();
         },
       }),

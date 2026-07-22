@@ -14,23 +14,33 @@ export interface ChatScreenContext {
 }
 
 /**
- * 채팅 요청 body.
+ * SSE 스트림 요청 body(streamChat 이 그대로 직렬화).
  * - 일반/제안: message 를 보낸다.
  * - 승인(confirm): action:"confirm" + draftId 를 최상위로 보낸다(발화≠동의, message 없음).
- * 신원(sellerId·brandId)은 판매자 스트림 티켓 클레임에서 추출 — body엔 신원 없음.
+ * 신원(userId·sellerId·brandId)·channel 은 body 에 없다 — 세션 발급 단계에서 서버가 도출해
+ * 티켓 claim 에 박으므로, SSE body 는 순수 대화 필드만 싣는다(IDOR 방지).
  * 선택 대상(주문/상품)은 계약상 별도 필드가 없다 — message 자연어에 녹여 LLM이 처리한다.
  */
-export interface ChatRequest {
-  sessionId: string;
-  threadId?: string; // 판매자 챗 계약: 대화 스레드 식별자
-  userId?: number;
-  guestId?: string | null;
-  channel: ChatChannel;
+export interface StreamChatBody {
+  sessionId: string; // 세션 발급으로 받은 BE 발급값
+  threadId?: string; // 대화 스레드 식별자
   message?: string; // confirm 요청에선 생략
-  brandId?: number; // SELLER 채널 전용
   screen?: ChatScreenContext; // 사이드 채팅에서만 전송
   action?: "confirm"; // draft 승인 — message 대신 이 필드로 확정
   draftId?: string; // action:"confirm" 일 때 대상 draft
+}
+
+/**
+ * 챗 스트림 진입 티켓 — SSE 연결 전에 BE(Spring)가 발급한다.
+ * 로그인 AT 를 이 API 로 교환해 단명 streamTicket 을 받고, SSE 요청엔 티켓을 싣는다.
+ * (셀러: brandId 는 클라이언트 주장이 아니라 서버가 JWT→DB 로 도출해 티켓 claim 에 박음)
+ */
+export interface ChatSession {
+  sessionId: string; // BE(Redis) 발급, 10분 sliding TTL
+  ttlSeconds: number; // 세션 TTL(초)
+  streamTicket: string; // 단명 JWT(RS256, TTL 30~60s) — SSE Authorization 에 사용
+  ticketTtlSeconds: number; // 티켓 TTL(초)
+  llmSseUrl: string; // FE 가 SSE POST 할 엔드포인트(BE 설정값)
 }
 
 // 시딩 계약(SeededProductCard)에 AI 추천 이유만 더한 형태 — 상세 캐시 승계 호환 유지

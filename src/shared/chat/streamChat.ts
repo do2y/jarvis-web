@@ -1,26 +1,28 @@
-import { useAuthStore } from '@/shared/stores/authStore';
-import type { ChatEvent, ChatRequest } from '@/shared/types/chat';
+import type { ChatEvent, StreamChatBody } from '@/shared/types/chat';
 
 /**
  * 채팅 SSE 스트림 소비 유틸.
  * POST + JSON body이므로 EventSource가 아닌 fetch 스트리밍으로 파싱한다.
  * 자동 재시도 금지(중복 담기 방지) — 실패 시 호출부에서 재시도 버튼 제공.
+ *
+ * 인증은 로그인 AT 가 아니라 세션 발급으로 받은 단명 streamTicket 을 싣는다.
+ * URL 도 세션 발급 응답의 llmSseUrl 을 그대로 쓴다(BE 설정값) — 여기서 URL 을 만들지 않는다.
  */
 export async function streamChat(
-  req: ChatRequest,
+  sseUrl: string,
+  ticket: string,
+  body: StreamChatBody,
   onEvent: (e: ChatEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const token = useAuthStore.getState().accessToken;
-
-  // TODO: 엔드포인트는 백엔드 확정 시 반영
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chat`, {
+  const res = await fetch(sseUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Accept: 'text/event-stream',
+      Authorization: `Bearer ${ticket}`,
     },
-    body: JSON.stringify(req),
+    body: JSON.stringify(body),
     signal,
   });
 

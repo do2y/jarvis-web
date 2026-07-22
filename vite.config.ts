@@ -35,6 +35,8 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        // 셀러 챗 SSE 는 프록시를 타지 않는다 — 세션 발급 응답의 llmSseUrl(AI 서버 절대 URL)로 직통.
+        // 따라서 /seller 프록시·VITE_AI_SERVER_URL 은 불필요(AI 서버가 CORS 를 열어야 함).
       },
     },
     resolve: {
