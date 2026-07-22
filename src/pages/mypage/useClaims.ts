@@ -1,15 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/client";
+import { selectIsAuthReady, useAuthStore } from "@/shared/stores/authStore";
 import { createClaim, fetchClaims } from "./api";
 import type { CreateClaimRequest } from "./types";
 
 // 취소·반품 신청 내역 — 서버 원본, 처리 상태가 바뀔 수 있어 staleTime 0.
 // page/size가 키에 들어가 페이지 전환 시 각각 캐시된다(주문 목록과 동일).
+// 로그인 필수 — 복원 완료 전에 보내면 AT 없이 나가 401 → 로그인으로 튕긴다.
 export function useClaims(page = 0, size = 10) {
+  const isAuthReady = useAuthStore(selectIsAuthReady);
+
   return useQuery({
     queryKey: ["claims", { page, size }],
     queryFn: () => fetchClaims(page, size),
     staleTime: 0,
+    enabled: isAuthReady,
   });
 }
 

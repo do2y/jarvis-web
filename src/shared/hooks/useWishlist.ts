@@ -6,19 +6,20 @@ import {
   removeWishlistItem,
 } from "@/shared/api/wishlist";
 import { ApiError } from "@/shared/api/client";
-import { useAuthStore } from "@/shared/stores/authStore";
+import { selectIsAuthReady, useAuthStore } from "@/shared/stores/authStore";
 import type { WishlistProduct } from "@/shared/types/wishlist";
 
 // 찜한 상품 — 서버 원본. 찜 추가·해제로 자주 바뀌어 staleTime 0.
 // 게스트는 401이라 아예 호출하지 않는다(찜은 로그인 필요).
+// 복원 완료 전에도 보내면 안 된다 — AT 없이 나가 401 → 로그인으로 튕긴다.
 export function useWishlist() {
-  const isAuthed = useAuthStore((s) => s.accessToken !== null);
+  const isAuthReady = useAuthStore(selectIsAuthReady);
 
   return useQuery({
     queryKey: ["wishlist"],
     queryFn: fetchWishlist,
     staleTime: 0,
-    enabled: isAuthed,
+    enabled: isAuthReady,
   });
 }
 
@@ -35,7 +36,9 @@ export function useIsWished(productId: number): boolean {
 export function useToggleWishlist() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const isAuthed = useAuthStore((s) => s.accessToken !== null);
+  // 여기선 "로그인 화면으로 보낼지"를 판단하므로 user 기준이다.
+  // AT(=isAuthReady)로 보면 복원 중인 로그인 사용자를 게스트로 오인해 로그인으로 보낸다.
+  const isAuthed = useAuthStore((s) => s.user !== null);
 
   const mutation = useMutation({
     mutationFn: ({ productId, wished }: { productId: number; wished: boolean }) =>

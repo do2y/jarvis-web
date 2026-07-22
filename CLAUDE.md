@@ -32,7 +32,7 @@
 
 ## 상태 구분
 - **서버 원본 데이터**(상품/장바구니/주문/찜/문의) → React Query. useState로 복제 금지
-- **클라이언트 상태** → Zustand: 인증(authStore, localStorage persist), 현재 챗봇 대화(persist 안 함 — 새로고침 소실이 의도된 동작), UI 상태
+- **클라이언트 상태** → Zustand: 인증(authStore — user만 localStorage persist, AT는 메모리 전용), 현재 챗봇 대화(persist 안 함 — 새로고침 소실이 의도된 동작), UI 상태
 - **폼** → React Hook Form + Zod. 검증 규칙은 백엔드 필드 정의와 일치시킬 것
 
 ## React Query 규칙
@@ -48,6 +48,14 @@
 - 게스트: 탐색·챗봇·**장바구니 담기**까지 가능(횟수 제한 없음, 개인화만 미적용). 구매·찜·마이페이지는 로그인 필요
 - 미인증 접근 → `?returnUrl=` 붙여 /login, 로그인 후 복귀
 - 토큰: 인터셉터에서 자동 첨부, 401 → refresh 1회 재시도 → 실패 시 clearAuth + 로그인 이동. **이 로직은 shared/api에만 존재**
+- **AT는 메모리에만 보관**(persist 제외, XSS 탈취 토큰의 지속 사용 차단). 새로고침 시 `useRestoreSession`(App.tsx)이 refresh → `/api/auth/me`로 복원, 실패하면 clearAuth
+- **persist된 user는 신뢰 경계가 아님**(사용자가 편집 가능) — role 판정은 `me` 응답으로 덮어쓴다. 가드는 UX 필터일 뿐 최종 방어선은 백엔드
+- 복원 중(`isRestoring`)에는 가드가 판정을 보류 — 없으면 새로고침마다 로그인으로 튕긴다
+- **인증 필요 쿼리의 `enabled`는 `selectIsAuthReady`(복원완료+AT보유) 필수.** `user`/`userId`로 판정하면 새로고침 직후 AT 없이 요청이 나가 401 → 공개 라우트에서도 로그인으로 튕긴다
+- 판정 기준 2종을 구분할 것: **요청 가능?** → `isAuthReady` / **로그인 사용자?** → `user !== null`(가드·게스트 분기)
+- 복원 경로의 401은 리다이렉트 대상이 아님 — `fetchMe`는 `NO_AUTH_REDIRECT`로 호출
+- 목 refresh는 `mock-rt` 쿠키 유무로 분기(게스트 401 / 로그인 성공) — 고정 응답으로 두면 게스트가 로그인 상태가 되거나 콘솔에 401이 쌓인다
+- 상세 배경은 `docs/auth-token-strategy.md`
 
 ## 챗봇 공통 모듈 (src/shared/chat, 타입: src/shared/types/chat.ts)
 - 3개 챗봇은 단일 API를 `channel`(SHOPPING|CS|SELLER)만 바꿔 공유. 공통 모듈 + 채널별 렌더러 주입

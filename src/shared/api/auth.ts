@@ -1,12 +1,15 @@
 import axios from "axios";
-import { api } from "@/shared/api/client";
+import { api, NO_AUTH_REDIRECT } from "@/shared/api/client";
 import type { AuthUser } from "@/shared/stores/authStore";
 
 // 현재 로그인 사용자 (A-5). 라우팅 가드의 로그인 여부·역할 판정 소스.
 // localStorage의 user는 사용자가 편집 가능하므로 role을 신뢰하지 않고 여기서 덮어쓴다.
-// 401 처리(AUTH_REQUIRED → 로그인 / AUTH_TOKEN_EXPIRED → refresh)는 client.ts 인터셉터가 담당.
+//
+// NO_AUTH_REDIRECT: 부팅 복원에서 호출되므로 401을 인터셉터에 맡기면 안 된다.
+// 맡기면 리다이렉트가 먼저 일어나 호출부(useRestoreSession)의 catch가 무력해지고,
+// "복원 실패 → 조용히 비로그인" 대신 화면이 로그인으로 튕긴다.
 export async function fetchMe(): Promise<AuthUser> {
-  const { data } = await api.get<AuthUser>("/api/auth/me");
+  const { data } = await api.get<AuthUser>("/api/auth/me", NO_AUTH_REDIRECT);
   return data;
 }
 

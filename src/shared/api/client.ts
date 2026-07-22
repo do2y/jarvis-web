@@ -72,9 +72,27 @@ function redirectToLogin() {
   window.location.href = `/login?returnUrl=${returnUrl}`;
 }
 
+// axios 요청 config에 커스텀 옵션을 추가한다. 모듈 확장을 써야 get/post에
+// 그대로 넘길 때 타입이 통과한다.
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    /**
+     * 401을 호출부가 직접 처리하겠다는 표시. 인터셉터의 로그인 리다이렉트를 건너뛴다.
+     * 부팅 복원처럼 "401이 곧 비로그인 판정"인 경로에서 쓴다 — 리다이렉트가 먼저 일어나면
+     * 호출부의 catch가 잡기도 전에 화면이 로그인으로 넘어간다.
+     */
+    skipAuthRedirect?: boolean;
+  }
+}
+
 interface RetriableConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
+
+/** 요청 단위로 401 자동 리다이렉트를 끄는 옵션 (axios config에 그대로 전달) */
+export const NO_AUTH_REDIRECT: { skipAuthRedirect: true } = {
+  skipAuthRedirect: true,
+};
 
 // 봉투 언래핑: 성공 응답에서 data를 꺼내 그대로 반환한다.
 // success:false인데 HTTP 200으로 올 수도 있어(백엔드 정책) 여기서 방어적으로 throw.
@@ -106,6 +124,18 @@ api.interceptors.response.use(
     // 401 2종 규약(2026-07-18 확정): AUTH_TOKEN_EXPIRED만 refresh 재시도 대상.
     // AUTH_REQUIRED(RT 없음/만료)는 재발급 여지가 없으므로 바로 로그인 유도.
     if (status === 401 && code === "AUTH_REQUIRED") {
+      // 호출부가 직접 처리하겠다고 표시한 요청은 리다이렉트하지 않고 에러를 넘긴다
+      if (original?.skipAuthRedirect) {
+        return Promise.reject(
+          new ApiError(
+            axiosError.response?.data?.error ?? {
+              code: "AUTH_REQUIRED",
+              message: "로그인이 필요합니다.",
+            },
+            status,
+          ),
+        );
+      }
       redirectToLogin();
       return new Promise(() => {});
     }

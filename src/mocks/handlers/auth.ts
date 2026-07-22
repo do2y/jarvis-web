@@ -1,17 +1,24 @@
 import { http, HttpResponse } from "msw";
 import { BASE, fail, ok } from "../shared";
 
-// A-1/A-2 성공 응답: AT는 body, RT는 httpOnly 쿠키(목에선 Set-Cookie 생략), user는 member 키
+// A-1/A-2 성공 응답: AT는 body, RT는 쿠키, user는 member 키.
+//
+// 실제 백엔드의 RT는 httpOnly라 JS로 못 읽지만, 목은 MSW가 요청의 cookies를 읽어야
+// refresh를 분기할 수 있어 httpOnly 없이 심는다(목 한정 — 실서비스 동작과 무관).
+// 이 쿠키가 "RT 보유 = 로그인 세션 존재"의 표시이며, id를 담아 refresh가 어떤 계정인지 안다.
 function authResponse(member: {
   id: number;
   email: string;
   nickname: string;
   role: "USER" | "SELLER" | "ADMIN";
 }) {
-  return ok({
-    accessToken: `mock-access-${member.id}`,
-    member,
-  });
+  return HttpResponse.json(
+    ok({
+      accessToken: `mock-access-${member.id}`,
+      member,
+    }),
+    { headers: { "Set-Cookie": `mock-rt=${member.id}; Path=/; SameSite=Lax` } },
+  );
 }
 
 // 로그인 성공 계정 (비밀번호는 아무 값이나 통과 — 실패 흐름은 미등록 이메일로 테스트)
@@ -58,7 +65,7 @@ export const authHandlers = [
         { status: 401 },
       );
     }
-    return HttpResponse.json(authResponse(account));
+    return authResponse(account);
   }),
 
   http.post(`${BASE}/api/auth/signup`, async ({ request }) => {
@@ -78,45 +85,53 @@ export const authHandlers = [
         { status: 409 },
       );
     }
-    // 가입 완료 시 자동 로그인 — 로그인과 동일한 토큰 응답
-    return HttpResponse.json(
-      authResponse({ id: 100, email, nickname, role: "USER" }),
-    );
+    // 가입 완료 시 자동 로그인 — 로그인과 동일한 토큰 응답.
+    // MOCK_ACCOUNTS에 등록해야 이후 /api/auth/me가 이 계정을 되짚을 수 있다
+    // (등록을 빠뜨리면 새로고침 시 me가 401이라 방금 가입한 사용자가 튕긴다).
+    const created = { id: 100, email, nickname, role: "USER" as const };
+    MOCK_ACCOUNTS[email] = created;
+    return authResponse(created);
   }),
 
-  // 로그아웃 — 멱등, 항상 성공. 실제 백엔드는 RT 쿠키 만료도 하지만 목은 성공 봉투만.
-  http.post(`${BASE}/api/auth/logout`, () => HttpResponse.json(ok(null))),
-
-  // AT 재발급 — RT 쿠키로 식별. 실제 백엔드는 RT 회전(새 RT를 Set-Cookie)까지 하지만
-  // 목은 httpOnly 쿠키를 다루지 않으므로 AT만 새로 발급한다.
-  //
-  // 목에는 RT가 없으므로 항상 401(AUTH_REQUIRED)로 응답한다. 성공을 주면 부팅 복원이
-  // 게스트까지 로그인 상태로 만들어 버린다(로그인 없이 /mypage가 열림).
-  // 새로고침 후 로그인 유지를 목으로 확인하려면 아래를 ok({accessToken})로 바꾸고
-  // /api/auth/me의 CURRENT_MEMBER를 원하는 계정으로 지정할 것.
-  http.post(`${BASE}/api/auth/refresh`, () =>
-    HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
-      status: 401,
+  // 로그아웃 — 멱등, 항상 성공. RT 쿠키를 만료시켜 이후 refresh가 401이 되게 한다.
+  http.post(`${BASE}/api/auth/logout`, () =>
+    HttpResponse.json(ok(null), {
+      headers: { "Set-Cookie": "mock-rt=; Path=/; Max-Age=0" },
     }),
   ),
 
+  // AT 재발급 — RT 쿠키 유무로 분기한다. 실제 백엔드는 RT 회전(새 RT를 Set-Cookie)까지
+  // 하지만 목은 AT만 새로 발급한다.
+  //
+  // 항상 성공을 주면 게스트도 부팅 복원에서 로그인 상태가 되고(로그인 없이 /mypage가 열림),
+  // 항상 401을 주면 로그인해도 새로고침마다 세션이 끊기고 콘솔에 401이 쌓인다.
+  // 쿠키로 갈라야 양쪽 다 실제 백엔드처럼 동작한다.
+  http.post(`${BASE}/api/auth/refresh`, ({ cookies }) => {
+    const id = cookies["mock-rt"];
+    if (!id) {
+      // 게스트의 정상 흐름 — useRestoreSession이 조용히 비로그인으로 처리한다
+      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
+        status: 401,
+      });
+    }
+    // me가 계정을 되짚을 수 있도록 로그인과 같은 `mock-access-{id}` 형식을 유지한다
+    return HttpResponse.json(ok({ accessToken: `mock-access-${id}` }));
+  }),
+
   // 현재 사용자 (A-5) — 라우팅 가드의 역할 판정 소스.
   // 목은 AT를 검증하지 않으므로 Authorization 존재 여부만 보고, 어떤 계정인지는
-  // 토큰에 심긴 id로 되짚는다(로그인 목이 `mock-access-{id}` 형태로 발급).
+  // 토큰에 심긴 id로 되짚는다(로그인·refresh 목이 `mock-access-{id}` 형태로 발급).
   http.get(`${BASE}/api/auth/me`, ({ request }) => {
     const auth = request.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) {
-      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
-        status: 401,
-      });
-    }
+    const unauthorized = HttpResponse.json(
+      fail("AUTH_REQUIRED", "로그인이 필요합니다."),
+      { status: 401 },
+    );
+    if (!auth?.startsWith("Bearer ")) return unauthorized;
+
     const id = Number(auth.replace("Bearer mock-access-", ""));
     const account = Object.values(MOCK_ACCOUNTS).find((a) => a.id === id);
-    if (!account) {
-      return HttpResponse.json(fail("AUTH_REQUIRED", "로그인이 필요합니다."), {
-        status: 401,
-      });
-    }
+    if (!account) return unauthorized;
     return HttpResponse.json(ok(account));
   }),
 

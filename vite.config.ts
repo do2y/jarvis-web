@@ -18,6 +18,22 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: env.VITE_API_PROXY_TARGET || "http://localhost:8080",
           changeOrigin: true,
+          // 백엔드 RT 쿠키는 `Secure; SameSite=Strict`로 내려오는데, dev는 http://localhost라
+          // 브라우저가 Secure 쿠키를 저장하지 않는다 → 로그인해도 RT가 안 남아
+          // /api/auth/refresh가 항상 401(AUTH_REQUIRED) → 인터셉터가 /login으로 튕긴다.
+          // dev 한정으로 Secure를 떼고 SameSite를 완화한다(프록시 덕에 same-origin이라 안전).
+          cookieDomainRewrite: "localhost",
+          configure: (proxy) => {
+            proxy.on("proxyRes", (proxyRes) => {
+              const setCookie = proxyRes.headers["set-cookie"];
+              if (!setCookie) return;
+              proxyRes.headers["set-cookie"] = setCookie.map((c) =>
+                c
+                  .replace(/;\s*Secure/gi, "")
+                  .replace(/;\s*SameSite=\w+/gi, "; SameSite=Lax"),
+              );
+            });
+          },
         },
       },
     },

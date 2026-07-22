@@ -15,7 +15,24 @@ import { useAuthStore } from "@/shared/stores/authStore";
  * 인터셉터를 타면 /login으로 리다이렉트되어 게스트가 홈에 못 머문다.
  */
 async function restore(): Promise<void> {
-  const { setAccessToken, setUser, clearAuth } = useAuthStore.getState();
+  // persist 리하이드레이션은 비동기라 mount 시점엔 user가 아직 null일 수 있다.
+  // 기다리지 않고 user를 읽으면 "로그인한 적 없음"으로 오판해 refresh를 건너뛰고,
+  // 잠시 뒤 user만 복원돼 "user는 있는데 AT는 없는" 상태로 굳는다
+  // → 인증 쿼리가 전부 막히거나 401을 맞아 새로고침 때마다 로그인으로 튕긴다.
+  if (!useAuthStore.persist.hasHydrated()) {
+    await new Promise<void>((resolve) => {
+      const unsub = useAuthStore.persist.onFinishHydration(() => {
+        unsub();
+        resolve();
+      });
+    });
+  }
+
+  const { user, setAccessToken, setUser, clearAuth } = useAuthStore.getState();
+
+  // 로그인한 적이 없으면 이을 세션이 없다 → refresh를 부르지 않는다.
+  // 부르면 RT가 없어 401이 정상 응답인데, 게스트가 앱을 열 때마다 콘솔에 에러가 쌓인다.
+  if (!user) return;
 
   let token: string;
   try {
@@ -43,15 +60,17 @@ async function restore(): Promise<void> {
   }
 }
 
+// StrictMode는 이펙트를 2회 실행한다. 그대로 두면 refresh가 두 번 나가고,
+// 백엔드가 RT를 회전시키므로 두 번째 호출이 첫 번째가 받은 토큰을 무효화할 수 있다.
+// 모듈 레벨에 프라미스를 두어 실제 복원은 1회만 수행한다(client.ts의 refreshing과 같은 방식).
+let restoring: Promise<void> | null = null;
+
 /** App 최상단에서 1회 실행. 완료 전까지 isRestoring=true라 가드는 판정을 보류한다. */
 export function useRestoreSession(): void {
   useEffect(() => {
-    let cancelled = false;
-    restore().finally(() => {
-      if (!cancelled) useAuthStore.getState().finishRestore();
+    restoring ??= restore();
+    restoring.finally(() => {
+      useAuthStore.getState().finishRestore();
     });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 }

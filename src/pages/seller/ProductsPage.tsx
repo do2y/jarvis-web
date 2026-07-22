@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { selectIsAuthReady, useAuthStore } from "@/shared/stores/authStore";
 import { fetchSellerProducts } from "./api";
 import type { SellerProductTab } from "./types";
 import type { SellerProductStatus } from "@/shared/types/chat";
@@ -35,11 +36,15 @@ export default function ProductsPage() {
   const tab = (params.get("tab") ?? "ALL") as SellerProductTab;
   const page = Number(params.get("page") ?? 1);
 
+  // 복원 완료 전에 보내면 AT 없이 나가 401 → 로그인으로 튕긴다
+  const isAuthReady = useAuthStore(selectIsAuthReady);
+
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["seller", "products", { tab, page }],
     queryFn: () => fetchSellerProducts({ tab, page }),
     staleTime: 0,
     placeholderData: keepPreviousData,
+    enabled: isAuthReady,
   });
 
   const update = (next: { tab?: SellerProductTab; page?: number }) => {

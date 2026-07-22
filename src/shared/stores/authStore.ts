@@ -57,3 +57,16 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+/**
+ * 인증이 필요한 요청을 보내도 되는 시점인지.
+ *
+ * `user`만 보면 안 된다 — user는 persist되지만 AT는 메모리라, 새로고침 직후엔
+ * "user는 있는데 AT는 없는" 구간이 존재한다. 이때 요청을 보내면 Authorization
+ * 헤더 없이 나가 401을 맞고, 인터셉터가 로그인 화면으로 튕겨버린다.
+ *
+ * 복원이 끝났고(isRestoring=false) AT가 실제로 있을 때만 true.
+ * 인증 필요 쿼리의 `enabled`는 반드시 이걸 쓸 것.
+ */
+export const selectIsAuthReady = (s: AuthState) =>
+  !s.isRestoring && s.accessToken !== null;

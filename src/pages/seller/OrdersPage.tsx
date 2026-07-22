@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { selectIsAuthReady, useAuthStore } from "@/shared/stores/authStore";
 import { fetchSellerOrders } from "./api";
 import type { SellerOrderStatus } from "./types";
 import { StatusTabs } from "./components/StatusTabs";
@@ -45,11 +46,15 @@ export default function OrdersPage() {
   const status = (params.get("status") ?? "ALL") as Tab;
   const page = Number(params.get("page") ?? 1);
 
+  // 복원 완료 전에 보내면 AT 없이 나가 401 → 로그인으로 튕긴다
+  const isAuthReady = useAuthStore(selectIsAuthReady);
+
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["seller", "orders", { status, page }],
     queryFn: () => fetchSellerOrders({ status, page }),
     staleTime: 0,
     placeholderData: keepPreviousData, // 탭 전환 시 표가 깜빡이지 않게 이전 결과 유지
+    enabled: isAuthReady,
   });
 
   const update = (next: { status?: Tab; page?: number }) => {

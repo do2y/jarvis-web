@@ -7,7 +7,7 @@ import {
   updateAddress,
 } from "@/shared/api/address";
 import { ApiError } from "@/shared/api/client";
-import { useAuthStore } from "@/shared/stores/authStore";
+import { selectIsAuthReady, useAuthStore } from "@/shared/stores/authStore";
 import type {
   Address,
   AddressInput,
@@ -21,12 +21,12 @@ import type {
 // 로그인 필요 자원이라 게스트는 401 — enabled로 호출 자체를 막는다.
 // 추가/수정/삭제 직후 반영돼야 하므로 staleTime 0.
 export function useAddresses() {
-  const isAuthed = useAuthStore((s) => s.accessToken !== null);
+  const isAuthReady = useAuthStore(selectIsAuthReady);
 
   return useQuery({
     queryKey: ["addresses"],
     queryFn: fetchAddresses,
-    enabled: isAuthed,
+    enabled: isAuthReady,
     staleTime: 0,
   });
 }
