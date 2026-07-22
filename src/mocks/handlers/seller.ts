@@ -4,13 +4,17 @@ import type {
   SellerOrder,
   SellerOrderStatus,
   SellerOrderTab,
+  SellerProduct,
+  SellerProductDisplayStatus,
+  SellerProductSort,
+  SellerProductTab,
   SellerSummary,
 } from "@/pages/seller/types";
 
 // ── 판매자 페이지 목 (pages/seller/types.ts 계약) ──
 
-const PAGE_SIZE = 7; // 상품 목록 목의 페이지 크기(주문은 아래 ORDER_PAGE_SIZE)
 const ORDER_PAGE_SIZE = 20; // 주문 목록 계약 기본 size
+const PRODUCT_PAGE_SIZE = 20; // 상품 목록 계약 기본 size
 
 const SELLER_IMG_A =
   "https://image.msscdn.net/thumbnails/images/goods_img/20260415/6317871/6317871_17811631352969_big.jpg?w=1200";
@@ -195,6 +199,8 @@ function tabOf(o: SellerOrder): Exclude<SellerOrderTab, "ALL"> {
   }
 }
 
+// 목 내부 표현. code는 계약(S-3)에서 제외되지만 대시보드 등 다른 목 소비처가 있어 남겨둔다.
+// status는 원본 2종만(SOLD_OUT은 displayStatus 파생값이라 여기 없음). createdAt은 ISO.
 const MOCK_SELLER_PRODUCTS: {
   productId: number;
   name: string;
@@ -203,7 +209,7 @@ const MOCK_SELLER_PRODUCTS: {
   price: number;
   stock: number;
   salesCount: number;
-  status: "ON_SALE" | "SOLD_OUT" | "HIDDEN";
+  status: "ON_SALE" | "HIDDEN";
   categoryName: string;
   createdAt: string;
 }[] = [
@@ -244,6 +250,7 @@ const MOCK_SELLER_PRODUCTS: {
     createdAt: "2026-06-18",
   },
   {
+    // 재고 0 + 원본 ON_SALE → displayStatus는 SOLD_OUT으로 파생된다
     productId: 304,
     name: "크롭 트위드 자켓",
     imageUrl: SELLER_IMG_B,
@@ -251,7 +258,7 @@ const MOCK_SELLER_PRODUCTS: {
     price: 128000,
     stock: 0,
     salesCount: 1532,
-    status: "SOLD_OUT",
+    status: "ON_SALE",
     categoryName: "아우터",
     createdAt: "2026-06-10",
   },
@@ -304,6 +311,32 @@ const MOCK_SELLER_PRODUCTS: {
     createdAt: "2026-05-02",
   },
 ];
+
+// 목 내부 표현 → S-3 응답(SellerProduct). displayStatus를 재고·원본status로 파생한다.
+// (계약 §표시 상태: HIDDEN이 재고보다 우선 / ON_SALE+재고0 → SOLD_OUT)
+type MockProductRaw = (typeof MOCK_SELLER_PRODUCTS)[number];
+
+function displayStatusOf(p: MockProductRaw): SellerProductDisplayStatus {
+  if (p.status === "HIDDEN") return "HIDDEN";
+  return p.stock === 0 ? "SOLD_OUT" : "ON_SALE";
+}
+
+function toSellerProduct(p: MockProductRaw): SellerProduct {
+  return {
+    productId: p.productId,
+    name: p.name,
+    imageUrl: p.imageUrl,
+    category: p.categoryName,
+    price: p.price,
+    originalPrice: p.price, // 목은 할인 없음 — 정가=판매가
+    stockQuantity: p.stock,
+    displayedSalesCount: p.salesCount,
+    status: p.status,
+    displayStatus: displayStatusOf(p),
+    createdAt: `${p.createdAt}T00:00:00+09:00`,
+    updatedAt: `${p.createdAt}T00:00:00+09:00`,
+  };
+}
 
 // ── 대시보드 (S-1 GET /api/seller/summary, 2026-07-21 개정) ──
 // 진입 1회 호출로 전 블록을 덮는다. 상태 카운트는 주문 목록에서 도출해 정합을 맞춘다.
@@ -432,31 +465,50 @@ export const sellerHandlers = [
     );
   }),
 
-  // 상품 목록 — 상태 탭 필터 + 페이지네이션 동작
+  // 상품 목록(S-3) — displayStatus 탭 필터 + 정렬 + 0-base 페이지네이션. tabCounts는 전량 기준.
+  // (검색 q는 화면에서 제외 확정 — 파라미터가 와도 무시)
   http.get(`${BASE}/api/seller/products`, ({ request }) => {
     const url = new URL(request.url);
-    const tab = url.searchParams.get("tab") ?? "ALL";
-    const page = Number(url.searchParams.get("page") ?? 1);
+    const tab = (url.searchParams.get("status") ?? "ALL") as SellerProductTab;
+    const sort = (url.searchParams.get("sort") ?? "latest") as SellerProductSort;
+    const page = Number(url.searchParams.get("page") ?? 0); // 0-base
+    const size = Number(url.searchParams.get("size") ?? PRODUCT_PAGE_SIZE);
+
+    const all = MOCK_SELLER_PRODUCTS.map(toSellerProduct);
+
+    // tabCounts는 필터와 무관하게 항상 전량 기준
+    const tabCounts: Record<SellerProductTab, number> = {
+      ALL: all.length,
+      ON_SALE: 0,
+      SOLD_OUT: 0,
+      HIDDEN: 0,
+    };
+    for (const p of all) tabCounts[p.displayStatus] += 1;
 
     const filtered =
-      tab === "ALL"
-        ? MOCK_SELLER_PRODUCTS
-        : MOCK_SELLER_PRODUCTS.filter((p) => p.status === tab);
+      tab === "ALL" ? all : all.filter((p) => p.displayStatus === tab);
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sort) {
+        case "sales":
+          return b.displayedSalesCount - a.displayedSalesCount;
+        case "stock":
+          return a.stockQuantity - b.stockQuantity;
+        case "price":
+          return b.price - a.price;
+        default: // latest — createdAt DESC
+          return b.createdAt.localeCompare(a.createdAt);
+      }
+    });
 
     return HttpResponse.json(
       ok({
-        products: filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+        content: sorted.slice(page * size, page * size + size),
+        tabCounts,
         page,
-        totalPages: Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
-        counts: {
-          ALL: MOCK_SELLER_PRODUCTS.length,
-          ON_SALE: MOCK_SELLER_PRODUCTS.filter((p) => p.status === "ON_SALE")
-            .length,
-          SOLD_OUT: MOCK_SELLER_PRODUCTS.filter((p) => p.status === "SOLD_OUT")
-            .length,
-          HIDDEN: MOCK_SELLER_PRODUCTS.filter((p) => p.status === "HIDDEN")
-            .length,
-        },
+        size,
+        totalElements: filtered.length,
+        totalPages: Math.max(1, Math.ceil(filtered.length / size)),
       }),
     );
   }),

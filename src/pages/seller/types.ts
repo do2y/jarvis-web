@@ -1,11 +1,3 @@
-/** 판매자 페이지 API 계약 — 백엔드 확정 전까지 mocks/handlers.ts와 1:1 */
-import type { SellerProductStat } from "@/shared/types/chat";
-
-// ── 대시보드 (S-1 GET /api/seller/summary, 2026-07-21 개정) ──
-//
-// 대시보드 진입 1회 호출로 전 블록을 덮는다(별도 엔드포인트로 분리하지 않음).
-// brandId는 서버가 JWT의 memberId에서 도출 — 클라이언트는 보내지 않는다(IDOR 방지).
-
 export interface SellerSummaryParams {
   from?: string; // YYYY-MM-DD, 생략 시 서버가 오늘로
   to?: string;
@@ -62,7 +54,7 @@ export interface SellerSummary {
   }[];
 }
 
-// ── 주문 (S-2 GET /api/seller/orders, 2026-07-21 개정 · 아이템→주문 단위) ──
+// ── 주문  ──
 
 // 대표 상태 배지에 실려오는 order_item.status 정본 6종 (I-19와 동일 어휘, 교환 없음).
 // 탭 필터(SellerOrderTab)와 다르다 — 탭은 4종으로 접지만 배지는 6종이 다 온다.
@@ -121,16 +113,39 @@ export interface SellerOrderPage {
 
 // ── 상품 ──
 
+// 탭 = displayStatus 기준(원본 status가 아님). SOLD_OUT은 status='ON_SALE' AND 재고 0의 파생.
 export type SellerProductTab = "ALL" | "ON_SALE" | "SOLD_OUT" | "HIDDEN";
 
-export interface SellerProduct extends SellerProductStat {
-  categoryName: string;
-  createdAt: string;
+// 원본 product.status — DDL 어휘 2종뿐(SOLD_OUT 없음). 챗봇 수정(I-11)이 토글할 대상.
+export type SellerProductRawStatus = "ON_SALE" | "HIDDEN";
+// 화면 배지용 파생값 3종 — 서버가 재고·원본status로 산출해 내려준다.
+export type SellerProductDisplayStatus = "ON_SALE" | "SOLD_OUT" | "HIDDEN";
+
+export type SellerProductSort = "latest" | "sales" | "stock" | "price";
+
+// S-3 화면 전용. 챗봇용 SellerProductStat(shared)과 필드가 달라 상속하지 않는다
+// (code 없음, stockQuantity/displayedSalesCount, displayStatus·createdAt은 화면 전용).
+export interface SellerProduct {
+  productId: number;
+  name: string;
+  imageUrl: string;
+  category: string; // 소분류(leaf) 이름만
+  price: number;
+  originalPrice: number; // 화면은 price만 쓰나 할인 배지 확장 대비로 보관
+  stockQuantity: number;
+  displayedSalesCount: number; // base_sales_count + order_item 집계
+  status: SellerProductRawStatus; // 원본(토글 대상)
+  displayStatus: SellerProductDisplayStatus; // 배지 표시용
+  createdAt: string; // ISO8601 +09:00 (등록일)
+  updatedAt: string;
 }
 
 export interface SellerProductPage {
-  products: SellerProduct[];
-  page: number;
+  content: SellerProduct[];
+  // 필터와 무관하게 항상 전량 기준 — 탭 전환 시 재호출 불필요
+  tabCounts: Record<SellerProductTab, number>;
+  page: number; // 0-base
+  size: number;
+  totalElements: number;
   totalPages: number;
-  counts: Record<SellerProductTab, number>;
 }

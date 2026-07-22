@@ -3,6 +3,7 @@ import type {
   SellerOrderPage,
   SellerOrderTab,
   SellerProductPage,
+  SellerProductSort,
   SellerProductTab,
   SellerSummary,
   SellerSummaryParams,
@@ -36,12 +37,22 @@ export async function fetchSellerOrders(params: {
   return data;
 }
 
+// 상품 목록. page는 0-base. tab이 ALL이면 status 미전송(생략=전체).
+// sort는 latest 기본이라 생략 가능. (검색 q는 화면에서 제외 확정 — 2026-07-21)
 export async function fetchSellerProducts(params: {
   tab: SellerProductTab;
   page: number;
+  sort?: SellerProductSort;
+  size?: number;
 }): Promise<SellerProductPage> {
+  const { tab, page, sort, size } = params;
   const { data } = await api.get<SellerProductPage>("/api/seller/products", {
-    params,
+    params: {
+      ...(tab !== "ALL" && { status: tab }),
+      page,
+      ...(sort && { sort }),
+      ...(size && { size }),
+    },
   });
   return data;
 }
