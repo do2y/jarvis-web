@@ -20,12 +20,20 @@ export function useCartItemCount(): number {
   return data?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
 }
 
+// 재고 부족 — 서버가 합산 후 수량과 재고를 비교해 반환(02 D33). 프론트 수량 제한을
+// 통과해도(이미 담긴 양 + 이번 요청 > 재고) 발생하므로 API 응답으로 최종 판정한다.
+export function isStockInsufficientError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "CART_STOCK_INSUFFICIENT";
+}
+
 function toAddCartMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === "CART_OPTION_REQUIRED") return "옵션을 선택해주세요.";
     if (error.code === "CART_OPTION_INVALID")
       return "선택한 옵션을 찾을 수 없어요.";
     if (error.code === "PRODUCT_NOT_FOUND") return "상품을 찾을 수 없어요.";
+    // 재고 수량은 응답에 실려 오지 않을 수 있어(백엔드 정책) 수치 없이 안내한다.
+    if (error.code === "CART_STOCK_INSUFFICIENT") return "재고가 부족해요.";
     // 검증 실패는 필드 사유("수량은 99 이하여야 합니다.")가 더 구체적이라 우선
     if (error.displayMessage) return error.displayMessage;
   }
@@ -46,5 +54,7 @@ export function useAddCartItem() {
   return {
     ...mutation,
     errorMessage: mutation.error ? toAddCartMessage(mutation.error) : null,
+    // 재고 부족은 인라인이 아니라 다이얼로그로 알린다(상세 페이지에서 분기).
+    isStockError: isStockInsufficientError(mutation.error),
   };
 }

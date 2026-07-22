@@ -7,9 +7,18 @@ import { cn } from "@/lib/utils";
 import { AppHeader } from "@/shared/ui/AppHeader";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/shared/ui/dialog";
 import { useAuthStore } from "@/shared/stores/authStore";
 import type { CheckoutState } from "@/shared/types/checkout";
-import { useAddCartItem } from "@/shared/hooks/useCart";
+import {
+  isStockInsufficientError,
+  useAddCartItem,
+} from "@/shared/hooks/useCart";
 import { formatPrice } from "@/shared/utils/formatPrice";
 import { ImageGallery } from "./components/ImageGallery";
 import { OptionSelector, type OptionSelection } from "./components/OptionSelector";
@@ -40,6 +49,10 @@ export default function ProductPage() {
   const { data: seeded } = useSeededProductCard(id);
 
   const addCart = useAddCartItem();
+
+  // 재고 부족(CART_STOCK_INSUFFICIENT)은 인라인이 아니라 다이얼로그로 알린다.
+  // 서버가 합산 후 수량으로 판정하므로 프론트 수량 제한을 통과해도 발생할 수 있다.
+  const [stockDialogOpen, setStockDialogOpen] = useState(false);
 
   // 리뷰는 정렬만 전환(페이지네이션은 계약 확정 후). 첫 페이지 10개.
   const [reviewSort, setReviewSort] = useState<ReviewSort>("latest");
@@ -167,6 +180,10 @@ export default function ProductPage() {
               unitPrice: (view?.price ?? 0) + (option?.extraPrice ?? 0),
             },
           }),
+        // 재고 부족만 다이얼로그로 알린다. 그 외 에러는 하단 인라인(errorMessage).
+        onError: (error) => {
+          if (isStockInsufficientError(error)) setStockDialogOpen(true);
+        },
       },
     );
   };
@@ -262,6 +279,8 @@ export default function ProductPage() {
               // 상세 도착 전에는 옵션 목록을 알 수 없어 수량만 노출
               options={detail?.options ?? []}
               basePrice={view.price}
+              // 재고 상한 — 상세 도착 전에는 undefined(제한 없음). 서버가 합산 후 최종 판정.
+              maxQuantity={detail?.stockQuantity}
               onChange={(sel) => {
                 selectionRef.current = sel;
               }}
@@ -326,7 +345,8 @@ export default function ProductPage() {
                 </button>
               </p>
             )}
-            {addCart.errorMessage && (
+            {/* 재고 부족은 다이얼로그로 알리므로 인라인에서는 제외. */}
+            {addCart.errorMessage && !addCart.isStockError && (
               <p className="text-sm text-destructive" role="alert">
                 {addCart.errorMessage}
               </p>
@@ -391,6 +411,28 @@ export default function ProductPage() {
           </section>
         )}
       </main>
+
+      {/* 재고 부족 안내 — 남은 재고 수량은 응답에 담기지 않을 수 있어 알리지 않는다. */}
+      <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col gap-2">
+            <DialogTitle>재고가 부족해요</DialogTitle>
+            <DialogDescription>
+              선택하신 수량만큼 담을 재고가 부족해요. 수량을 줄여서 다시
+              시도해주세요.
+            </DialogDescription>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button
+              variant="outline"
+              className="h-10"
+              onClick={() => setStockDialogOpen(false)}
+            >
+              확인
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

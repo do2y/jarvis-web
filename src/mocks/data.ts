@@ -17,6 +17,8 @@ export const POPULAR_PRODUCTS = [
     rating: 4.8,
     reviewCount: 2847,
     purchasable: true,
+    // 재고 소수 상품 — 재고 부족(CART_STOCK_INSUFFICIENT) 흐름 확인용.
+    stock: 0,
   },
   {
     productId: 102,
@@ -29,6 +31,7 @@ export const POPULAR_PRODUCTS = [
     rating: 4.9,
     reviewCount: 5210,
     purchasable: true,
+    stock: 100,
   },
   {
     productId: 103,
@@ -41,6 +44,7 @@ export const POPULAR_PRODUCTS = [
     rating: 4.7,
     reviewCount: 5621,
     purchasable: true,
+    stock: 100,
   },
   {
     productId: 104,
@@ -53,6 +57,7 @@ export const POPULAR_PRODUCTS = [
     rating: 4.5,
     reviewCount: 3401,
     purchasable: true,
+    stock: 100,
   },
   {
     productId: 105,
@@ -65,6 +70,7 @@ export const POPULAR_PRODUCTS = [
     rating: 4.6,
     reviewCount: 1820,
     purchasable: true,
+    stock: 100,
   },
   {
     productId: 106,
@@ -77,6 +83,7 @@ export const POPULAR_PRODUCTS = [
     rating: 4.8,
     reviewCount: 9210,
     purchasable: true,
+    stock: 100,
   },
 ];
 

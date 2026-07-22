@@ -290,7 +290,8 @@ export const catalogHandlers = [
         imageUrl: base.imageUrl,
         price: base.price,
         originalPrice: base.originalPrice,
-        stockQuantity: 100,
+        // 담기(C-2)와 같은 재고 소스를 봐야 "재고 부족" 검증이 일관된다.
+        stockQuantity: base.stock,
         purchasable: base.purchasable,
         status: "ON_SALE",
         summary: `${base.name} 상품 요약`,

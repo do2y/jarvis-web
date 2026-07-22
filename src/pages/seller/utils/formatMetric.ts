@@ -1,4 +1,4 @@
-import type { SellerMetric } from "@/shared/types/chat";
+import type { SellerMetric } from "../types";
 
 /** 판매 지표 값 표시 — 단위별 포맷 */
 export function formatMetric(

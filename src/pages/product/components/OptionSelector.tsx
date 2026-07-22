@@ -13,10 +13,14 @@ export interface OptionSelection {
 export function OptionSelector({
   options,
   basePrice,
+  maxQuantity,
   onChange,
 }: {
   options: ProductOption[];
   basePrice: number;
+  // 재고 상한. 상세 도착 전(재고 미상)에는 undefined → 제한 없이 증가 허용.
+  // 서버가 합산 후 재고로 최종 판정하므로 여기선 이번 선택 수량만 막는다.
+  maxQuantity?: number;
   onChange?: (selection: OptionSelection) => void;
 }) {
   // 사용자가 고른 값만 담는다. 초기값을 options[0]으로 잡으면 상세 도착 전 첫 렌더에서
@@ -29,6 +33,16 @@ export function OptionSelector({
   const selected =
     options.find((o) => o.optionId === pickedId) ?? options[0] ?? null;
   const optionId = selected?.optionId ?? null;
+
+  // 재고가 줄어(다른 창에서 담기 등) 현재 수량이 상한을 넘으면 상한으로 되돌린다.
+  useEffect(() => {
+    if (maxQuantity != null && qty > maxQuantity) {
+      setQty(Math.max(1, maxQuantity));
+    }
+  }, [maxQuantity, qty]);
+
+  // 재고가 있으면 상한을 넘겨 담지 못하게 막는다(1 이상은 항상 허용).
+  const atMax = maxQuantity != null && qty >= maxQuantity;
 
   // 선택/수량 변경을 상위로 전파. (부모의 액션 버튼이 최신 선택을 읽도록)
   useEffect(() => {
@@ -74,12 +88,19 @@ export function OptionSelector({
           <button
             type="button"
             onClick={() => setQty((q) => q + 1)}
+            disabled={atMax}
             aria-label="수량 증가"
-            className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground"
+            className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
           >
             <Plus className="size-4" />
           </button>
         </div>
+        {/* 재고 상한에 도달했을 때만 안내. 남은 재고 수량은 노출하지 않는다. */}
+        {atMax && (
+          <p className="text-xs text-muted-foreground" role="status">
+            더 담을 수 있는 재고가 없어요.
+          </p>
+        )}
       </Field>
 
       {/* 옵션 추가금이 붙으면 최종 단가가 달라지므로 합계를 명시 */}
