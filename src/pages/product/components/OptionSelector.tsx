@@ -34,20 +34,19 @@ export function OptionSelector({
     options.find((o) => o.optionId === pickedId) ?? options[0] ?? null;
   const optionId = selected?.optionId ?? null;
 
-  // 재고가 줄어(다른 창에서 담기 등) 현재 수량이 상한을 넘으면 상한으로 되돌린다.
-  useEffect(() => {
-    if (maxQuantity != null && qty > maxQuantity) {
-      setQty(Math.max(1, maxQuantity));
-    }
-  }, [maxQuantity, qty]);
+  // 재고가 줄어(다른 창에서 담기 등) qty가 상한을 넘어도 표시·전파는 상한으로 클램프한다.
+  // state를 effect에서 되돌리는 대신 렌더 중 파생값으로 계산 → cascading render 회피.
+  // (1 이상은 항상 허용, 재고가 0이어도 최소 1)
+  const quantity =
+    maxQuantity != null ? Math.min(qty, Math.max(1, maxQuantity)) : qty;
 
   // 재고가 있으면 상한을 넘겨 담지 못하게 막는다(1 이상은 항상 허용).
-  const atMax = maxQuantity != null && qty >= maxQuantity;
+  const atMax = maxQuantity != null && quantity >= maxQuantity;
 
   // 선택/수량 변경을 상위로 전파. (부모의 액션 버튼이 최신 선택을 읽도록)
   useEffect(() => {
-    onChange?.({ option: selected, quantity: qty });
-  }, [selected, qty, onChange]);
+    onChange?.({ option: selected, quantity });
+  }, [selected, quantity, onChange]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,16 +77,19 @@ export function OptionSelector({
         <div className="flex w-fit items-center rounded-full border">
           <button
             type="button"
-            onClick={() => setQty((q) => Math.max(1, q - 1))}
+            // 표시값(클램프된 quantity) 기준으로 증감 — qty가 상한보다 커도 자연스럽게 이어진다.
+            onClick={() => setQty(Math.max(1, quantity - 1))}
             aria-label="수량 감소"
             className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground"
           >
             <Minus className="size-4" />
           </button>
-          <span className="w-10 text-center text-sm font-medium">{qty}</span>
+          <span className="w-10 text-center text-sm font-medium">
+            {quantity}
+          </span>
           <button
             type="button"
-            onClick={() => setQty((q) => q + 1)}
+            onClick={() => setQty(quantity + 1)}
             disabled={atMax}
             aria-label="수량 증가"
             className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
