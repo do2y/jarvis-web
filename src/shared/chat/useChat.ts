@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { track } from "@/shared/analytics/track";
+import { ApiError } from "@/shared/api/client";
 import { streamChat } from "@/shared/chat/streamChat";
-import { openChatSession, openSellerSession } from "@/shared/chat/sessions";
+import {
+  openChatSession,
+  openSellerSession,
+  reissueTicket,
+} from "@/shared/chat/sessions";
 import type {
   ChatAction,
   ChatChannel,
@@ -68,14 +73,27 @@ export function useChat({
     getScreenContextRef.current = getScreenContext;
   });
 
-  // 스트림 진입 티켓 발급 — SSE 연결 전에 로그인 AT 를 단명 streamTicket 으로 교환한다.
-  // 티켓 TTL 이 30~60초로 짧아 재사용하지 않고 매 스트림 시작 직전에 새로 발급한다.
-  // sessionId 는 발급 응답값을 쓴다(BE·Redis 발급, sliding TTL) — 클라이언트가 만들지 않는다.
-  const openSession = useCallback((): Promise<ChatSession> => {
+  // 채널별 세션 발급(CH-6/CH-1) — 새 대화 시작 시 세션 생성 + 첫 티켓.
+  const createSession = useCallback((): Promise<ChatSession> => {
     return channel === "SELLER"
       ? openSellerSession()
       : openChatSession(channel);
   }, [channel]);
+
+  // 스트림 진입 티켓 확보 — 티켓 TTL 이 30~60초로 짧아 매 전송 직전에 확보한다.
+  // 기존 sessionId 가 있으면 재발급(CH-1b)으로 세션·맥락을 유지하고, 없으면 새로 발급한다.
+  // 재발급이 404(SESSION_NOT_FOUND: 만료·미존재)면 새 세션으로 폴백한다.
+  // sessionId 는 항상 발급 응답값을 쓴다(BE·Redis 발급, sliding TTL) — 클라이언트가 만들지 않는다.
+  const acquireTicket = useCallback((): Promise<ChatSession> => {
+    const existing = useChatStore.getState().sessionId;
+    if (!existing) return createSession();
+    return reissueTicket(existing).catch((err: unknown) => {
+      if (err instanceof ApiError && err.code === "SESSION_NOT_FOUND") {
+        return createSession(); // 만료된 세션 → 새 세션으로 시작
+      }
+      throw err;
+    });
+  }, [createSession]);
 
   /**
    * 스트림 실행 공통부 — 일반 발화(send)와 승인(confirm)이 공유한다.
@@ -117,8 +135,9 @@ export function useChat({
       abortRef.current = controller;
 
       try {
-        // 1) 세션·티켓 발급(Spring REST). sessionId 는 서버 발급값을 저장·사용.
-        const session = await openSession();
+        // 1) 티켓 확보(Spring REST) — 기존 세션이면 재발급(CH-1b), 아니면 새 발급(CH-6/CH-1).
+        //    sessionId 는 서버 발급값을 저장·사용(재발급도 같은 sessionId 를 돌려준다).
+        const session = await acquireTicket();
         setSessionId(session.sessionId);
 
         // threadId 는 계약상 프론트가 유지하는 대화 스레드 식별자(BE 는 sessionId 만 발급).
@@ -221,7 +240,7 @@ export function useChat({
       setStreaming,
       setLane,
       setProgress,
-      openSession,
+      acquireTicket,
     ],
   );
 

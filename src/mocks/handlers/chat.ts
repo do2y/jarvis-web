@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { BASE, ok } from "../shared";
+import { BASE, fail, ok } from "../shared";
 
 // ── SELLER 채널 목 (shared/types/chat.ts 판매자 이벤트 계약) ──
 // 상품명·이미지는 MOCK_CHAT_PRODUCTS와 맞춰 화면 간 일관성 유지
@@ -120,6 +120,11 @@ const streamWords = async (
   }
 };
 
+// 실제 BE 는 세션(Redis)에 channel/brandId 를 저장해 재발급 시 같은 스코프를 유지하지만,
+// 목은 상태가 없으므로 sessionId 접두사로 채널을 식별해 재발급 llmSseUrl 을 고른다.
+const sellerSse = () => `${BASE}/seller/chat`;
+const buyerSse = () => `${BASE}/api/chat`;
+
 export const chatHandlers = [
   // ── 세션·티켓 발급 (SSE 진입 전) — 공통 응답 봉투 { success, data } ──
   // 실제로는 로그인 AT 를 검증해 단명 streamTicket 을 발급하지만, 목은 고정값을 준다.
@@ -129,11 +134,11 @@ export const chatHandlers = [
   http.post(`${BASE}/api/chat/seller/sessions`, () => {
     return HttpResponse.json(
       ok({
-        sessionId: crypto.randomUUID(),
+        sessionId: `seller-${crypto.randomUUID()}`,
         ttlSeconds: 600,
         streamTicket: "mock-seller-ticket",
         ticketTtlSeconds: 60,
-        llmSseUrl: `${BASE}/seller/chat`,
+        llmSseUrl: sellerSse(),
       }),
     );
   }),
@@ -142,11 +147,33 @@ export const chatHandlers = [
   http.post(`${BASE}/api/chat/sessions`, () => {
     return HttpResponse.json(
       ok({
-        sessionId: crypto.randomUUID(),
+        sessionId: `buyer-${crypto.randomUUID()}`,
         ttlSeconds: 600,
         streamTicket: "mock-chat-ticket",
         ticketTtlSeconds: 60,
-        llmSseUrl: `${BASE}/api/chat`,
+        llmSseUrl: buyerSse(),
+      }),
+    );
+  }),
+
+  // 스트림 티켓 재발급(CH-1b) — POST /api/chat/tickets
+  // 기존 세션 유지한 채 새 티켓만 발급. sessionId 접두사로 채널을 판별해 같은 llmSseUrl 을 유지한다.
+  http.post(`${BASE}/api/chat/tickets`, async ({ request }) => {
+    const { sessionId } = (await request.json()) as { sessionId?: string };
+    if (!sessionId) {
+      return HttpResponse.json(
+        fail("SESSION_NOT_FOUND", "세션을 찾을 수 없습니다."),
+        { status: 404 },
+      );
+    }
+    const isSeller = sessionId.startsWith("seller-");
+    return HttpResponse.json(
+      ok({
+        sessionId, // 같은 세션 유지(맥락 단절 없음)
+        ttlSeconds: 600,
+        streamTicket: isSeller ? "mock-seller-ticket" : "mock-chat-ticket",
+        ticketTtlSeconds: 60,
+        llmSseUrl: isSeller ? sellerSse() : buyerSse(),
       }),
     );
   }),

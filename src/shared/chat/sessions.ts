@@ -29,3 +29,18 @@ export async function openChatSession(
   const res = await api.post<ChatSession>("/api/chat/sessions", { channel });
   return res.data;
 }
+
+/**
+ * 스트림 티켓 재발급(CH-1b) — POST /api/chat/tickets.
+ * 기존 세션을 유지한 채 새 SSE 연결용 티켓만 발급한다(대화 맥락 단절 없음).
+ * 셀러·구매자 공용 — 세션에 보관된 brandId/channel 로 같은 스코프 티켓을 유지한다.
+ * 매 메시지 전(또는 티켓 만료 401 시) 호출.
+ *
+ * 실패:
+ * - 404 SESSION_NOT_FOUND — 만료·미존재 sessionId → 호출부는 세션 발급(CH-6/CH-1)으로 폴백.
+ * - 403 SESSION_FORBIDDEN — 요청 신원 ≠ 세션 소유자(sessionId 만 알아도 남의 티켓 못 받음).
+ */
+export async function reissueTicket(sessionId: string): Promise<ChatSession> {
+  const res = await api.post<ChatSession>("/api/chat/tickets", { sessionId });
+  return res.data;
+}
