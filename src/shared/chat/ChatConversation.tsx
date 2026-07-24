@@ -30,12 +30,14 @@ export function ChatConversation({
   headerSlot,
 }: ChatConversationProps) {
   const messages = useChatStore((s) => s.messages);
+  // 분석 진행 상태(판매자) — 최종 답변(token) 전 로딩 텍스트로 표시, token 오면 소멸
+  const progress = useChatStore((s) => s.progress);
 
-  // 새 메시지·스트리밍 시 대화 영역 하단으로 스크롤
+  // 새 메시지·스트리밍·진행 표시 변화 시 대화 영역 하단으로 스크롤
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, isStreaming]);
+  }, [messages, isStreaming, progress]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -45,6 +47,7 @@ export function ChatConversation({
         <MessageList
           messages={messages}
           isStreaming={isStreaming}
+          progress={progress}
           onRetry={onRetry}
         />
       </div>

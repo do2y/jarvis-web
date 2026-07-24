@@ -28,6 +28,9 @@ interface ChatState {
   // 판매자 챗 화면 전환 신호 — 첫 프레임 meta.lane, 진행 표시 progress
   lane: SellerLane | null;
   progress: string | null; // 분석 진행 상태(최종 답변 아님, 로딩 표시용)
+  // 분석 리포트 — done{panel:replace}+lane:analysis 시 우측 패널에 표시할 리포트 본문.
+  // 계약상 analysis 답변은 단일 token이라 results 카드가 아니라 이 문자열로 담는다.
+  analysisReport: string | null;
 
   setSessionId: (id: string) => void;
   setThreadId: (id: string) => void;
@@ -44,6 +47,7 @@ interface ChatState {
   setStreaming: (v: boolean) => void;
   setLane: (lane: SellerLane | null) => void;
   setProgress: (text: string | null) => void;
+  setAnalysisReport: (text: string | null) => void;
   reset: () => void; // 새 대화
 }
 
@@ -57,6 +61,7 @@ const initial = {
   isStreaming: false,
   lane: null,
   progress: null,
+  analysisReport: null,
 };
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -119,6 +124,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setStreaming: (isStreaming) => set({ isStreaming }),
   setLane: (lane) => set({ lane }),
   setProgress: (progress) => set({ progress }),
+  setAnalysisReport: (analysisReport) => set({ analysisReport }),
   // 새 대화 — threadId 는 유지하지 않는다(reset은 대화 자체를 새로 시작할 때만 호출)
   reset: () => set({ ...initial }),
 }));

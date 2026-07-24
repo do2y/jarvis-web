@@ -9,9 +9,10 @@ const MOCK_SELLER_DRAFT = {
   draftId: "draft-8f21",
   op: "update" as const,
   productId: 301,
+  // 계약 §3.6: 수치도 문자열로 온다(FE는 camelCase field·string before/after)
   changes: [
-    { field: "price", before: 89000, after: 78000 },
-    { field: "stockQuantity", before: 4, after: 40 },
+    { field: "price", before: "89000", after: "78000" },
+    { field: "stockQuantity", before: "4", after: "40" },
     {
       field: "description",
       before: "린넨 소재의 벨티드 원피스",
@@ -357,7 +358,8 @@ export const chatHandlers = [
       );
     }
 
-    // 통계 Q&A — progress(분석 로딩) 후 자연어 token. 결과 카드 없음(패널 유지)
+    // 통계 Q&A — progress(분석 로딩)×N 후 리포트 token. 계약 §1.2·§3(A):
+    // 분석 리포트는 우측 패널로 교체(panel:replace), 진행은 progress로 분리.
     const where = body.screen?.filters?.["상태"];
     const scope =
       body.screen && where && where !== "전체"
@@ -368,13 +370,15 @@ export const chatHandlers = [
         async start(controller) {
           controller.enqueue(sse("meta", { lane: "analysis" }));
           controller.enqueue(sse("progress", { text: "매출·주문 분석 중…" }));
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 700));
+          controller.enqueue(sse("progress", { text: "보고서 작성 중…" }));
+          await new Promise((r) => setTimeout(r, 700));
           await streamWords(
             controller,
             `${scope}지난주 매출은 전주 대비 12% 감소했어요. 주말 유입이 많으니 금요일 저녁 프로모션을 추천드려요.`,
           );
           controller.enqueue(
-            sse("done", { finishReason: "stop", panel: "keep" }),
+            sse("done", { finishReason: "stop", panel: "replace" }),
           );
           controller.close();
         },

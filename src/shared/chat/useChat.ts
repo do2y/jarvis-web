@@ -60,6 +60,7 @@ export function useChat({
     setStreaming,
     setLane,
     setProgress,
+    setAnalysisReport,
     reset,
   } = useChatStore();
 
@@ -121,6 +122,7 @@ export function useChat({
       setStreaming(true);
       setLane(null);
       setProgress(null);
+      // 이전 리포트는 유지(새 스트림이 analysis+replace로 끝날 때만 교체) — done에서 갱신
 
       // 한 응답 안에서 여러 결과 이벤트가 올 수 있다. 첫 결과가 도착할 때
       // 이전 턴의 결과를 비우고, 그 뒤부터는 누적한다.
@@ -156,104 +158,115 @@ export function useChat({
 
         const onEvent = (e: ChatEvent) => {
           switch (e.type) {
-              case "meta":
-                // 첫 프레임 — 레인으로 즉시 레이아웃·로딩 준비
-                setLane(e.data.lane);
-                break;
-              case "progress":
-                // 분석 진행 상태(최종 답변 아님)
-                setProgress(e.data.text);
-                break;
-              case "token":
-                setProgress(null); // 실제 답변이 시작되면 진행 표시 제거
-                appendToLastAssistant(e.data.text);
-                break;
-              case "conditions":
-                // AI 추출 조건 칩(제거 가능). 새 턴이 오면 이전 칩을 덮어쓴다.
-                setConditions(e.data.chips);
-                break;
-              case "suggestions":
-                // 완화·되돌리기 제안 칩. estCount==0 은 방어적으로 제외.
-                setSuggestions(e.data.chips.filter((c) => c.estCount > 0));
-                break;
-              case "products.ready": {
-                // 경로 B — 카드는 SSE에 없다. listId 로 CH-5 목록을 조회해 패널에 넣는다.
-                // 조회 실패(404 등)는 재시도 버튼이 아니라 안내만 — 답변 자체는 정상 종료됐으므로.
-                const { listId } = e.data;
-                pendingFetches.push(
-                  fetchChatListCards(listId)
-                    .then((items) => {
-                      if (items.length) {
-                        pushResult({
-                          kind: "products",
-                          groups: [{ title: "추천 상품", items }],
-                        });
-                      }
-                    })
-                    .catch(() => {
-                      appendToLastAssistant(
-                        "\n\n추천 목록을 불러오지 못했어요. 다시 시도해 주세요.",
-                      );
-                    }),
-                );
-                break;
-              }
-              case "products":
-                pushResult({ kind: "products", groups: e.data.groups });
-                break;
-              case "draft":
-                pushResult({ kind: "draft", draft: e.data });
-                break;
-              case "action": {
-                // CART_ADDED·PRODUCT_UPDATED 등 — 안내 문구를 대화에 덧붙임
-                const action = e.data;
-                appendToLastAssistant(`\n\n${action.message}`);
-                // 수정 결과면 해당 draft 카드를 확정 상태로 잠금
-                if (
-                  action.type === "PRODUCT_UPDATED" ||
-                  action.type === "PRODUCT_UPDATE_FAILED"
-                ) {
-                  const pending = useChatStore
-                    .getState()
-                    .results.find(
-                      (r) =>
-                        r.kind === "draft" &&
-                        !r.settled &&
-                        r.draft.productId === action.productId,
-                    );
-                  if (pending?.kind === "draft") {
-                    settleDraft(pending.draft.draftId, action);
-                  }
-                }
-                if (action.type === "CART_ADDED") {
-                  track("add_to_cart", {
-                    properties: { source: "chat", cartItemId: action.cartItemId },
-                  });
-                }
-                onActionRef.current?.(action);
-                break;
-              }
-              case "done":
-                setProgress(null);
-                // zero_result: 결과 0건(에러 아님). AI token 안내가 없었으면 기본 문구로 채운다.
-                if (e.data.finishReason === "zero_result") {
-                  const last =
-                    useChatStore.getState().messages.slice(-1)[0];
-                  if (last?.role === "assistant" && !last.text) {
+            case "meta":
+              // 첫 프레임 — 레인으로 즉시 레이아웃·로딩 준비
+              setLane(e.data.lane);
+              // 새 분석이 시작되면 이전 리포트를 비운다(스켈레톤부터 다시 시작)
+              if (e.data.lane === "analysis") setAnalysisReport(null);
+              break;
+            case "progress":
+              // 분석 진행 상태(최종 답변 아님)
+              setProgress(e.data.text);
+              break;
+            case "token":
+              setProgress(null); // 실제 답변이 시작되면 진행 표시 제거
+              appendToLastAssistant(e.data.text);
+              break;
+            case "conditions":
+              // AI 추출 조건 칩(제거 가능). 새 턴이 오면 이전 칩을 덮어쓴다.
+              setConditions(e.data.chips);
+              break;
+            case "suggestions":
+              // 완화·되돌리기 제안 칩. estCount==0 은 방어적으로 제외.
+              setSuggestions(e.data.chips.filter((c) => c.estCount > 0));
+              break;
+            case "products.ready": {
+              // 경로 B — 카드는 SSE에 없다. listId 로 CH-5 목록을 조회해 패널에 넣는다.
+              // 조회 실패(404 등)는 재시도 버튼이 아니라 안내만 — 답변 자체는 정상 종료됐으므로.
+              const { listId } = e.data;
+              pendingFetches.push(
+                fetchChatListCards(listId)
+                  .then((items) => {
+                    if (items.length) {
+                      pushResult({
+                        kind: "products",
+                        groups: [{ title: "추천 상품", items }],
+                      });
+                    }
+                  })
+                  .catch(() => {
                     appendToLastAssistant(
-                      "조건에 맞는 상품을 찾지 못했어요. 조건을 바꿔 다시 시도해 주세요.",
+                      "\n\n추천 목록을 불러오지 못했어요. 다시 시도해 주세요.",
                     );
-                  }
-                }
-                onDoneRef.current?.(e.data.panel);
-                break;
-              case "error":
-                // 종결 이벤트 — 해당 말풍선에 에러 표시(재시도 버튼). code별 분기는 불필요,
-                // message가 사용자 노출 문구다(계약 §error).
-                failLastAssistant(e.data.message);
-                break;
+                  }),
+              );
+              break;
             }
-          };
+            case "products":
+              pushResult({ kind: "products", groups: e.data.groups });
+              break;
+            case "draft":
+              pushResult({ kind: "draft", draft: e.data });
+              break;
+            case "action": {
+              // CART_ADDED·PRODUCT_UPDATED 등 — 안내 문구를 대화에 덧붙임
+              const action = e.data;
+              appendToLastAssistant(`\n\n${action.message}`);
+              // 수정 결과면 해당 draft 카드를 확정 상태로 잠금
+              if (
+                action.type === "PRODUCT_UPDATED" ||
+                action.type === "PRODUCT_UPDATE_FAILED"
+              ) {
+                const pending = useChatStore
+                  .getState()
+                  .results.find(
+                    (r) =>
+                      r.kind === "draft" &&
+                      !r.settled &&
+                      r.draft.productId === action.productId,
+                  );
+                if (pending?.kind === "draft") {
+                  settleDraft(pending.draft.draftId, action);
+                }
+              }
+              if (action.type === "CART_ADDED") {
+                track("add_to_cart", {
+                  properties: { source: "chat", cartItemId: action.cartItemId },
+                });
+              }
+              onActionRef.current?.(action);
+              break;
+            }
+            case "done": {
+              setProgress(null);
+              // zero_result: 결과 0건(에러 아님). AI token 안내가 없었으면 기본 문구로 채운다.
+              if (e.data.finishReason === "zero_result") {
+                const last = useChatStore.getState().messages.slice(-1)[0];
+                if (last?.role === "assistant" && !last.text) {
+                  appendToLastAssistant(
+                    "조건에 맞는 상품을 찾지 못했어요. 조건을 바꿔 다시 시도해 주세요.",
+                  );
+                }
+              }
+              // 분석 리포트(analysis+replace)는 우측 패널로 교체된다. 계약상 리포트는
+              // 단일 token이라 마지막 assistant 텍스트를 그대로 리포트 본문으로 승계한다.
+              const st = useChatStore.getState();
+              if (st.lane === "analysis" && e.data.panel === "replace") {
+                const last = st.messages[st.messages.length - 1];
+                if (last?.role === "assistant" && last.text) {
+                  setAnalysisReport(last.text);
+                }
+              }
+              onDoneRef.current?.(e.data.panel);
+              break;
+            }
+            case "error":
+              // 종결 이벤트 — 해당 말풍선에 에러 표시(재시도 버튼). code별 분기는 불필요,
+              // message가 사용자 노출 문구다(계약 §error).
+              failLastAssistant(e.data.message);
+              break;
+          }
+        };
 
         // 2) llmSseUrl + streamTicket 으로 SSE 스트림 소비.
         //    티켓 만료 401(스트림 시작 전 거부)이면 재발급 후 1회만 재시도한다(계약 CH-2).
@@ -309,6 +322,7 @@ export function useChat({
       setStreaming,
       setLane,
       setProgress,
+      setAnalysisReport,
       acquireTicket,
     ],
   );

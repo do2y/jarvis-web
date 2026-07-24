@@ -8,6 +8,7 @@ import type {
   SellerProductTab,
   SellerWorkspaceTab,
 } from "../types";
+import { AnalysisReport } from "./AnalysisReport";
 import { OrderList } from "./OrderList";
 import { ProductList } from "./ProductList";
 import { ProductDiffCard } from "./ProductDiffCard";
@@ -19,6 +20,10 @@ interface SellerWorkspaceProps {
   results: ChatResult[];
   showResults: boolean;
   isStreaming: boolean;
+  /** 분석 리포트 본문(analysis+replace) — 있으면 결과 영역에 리포트를 표시 */
+  analysisReport: string | null;
+  /** 분석 스트림 진행 중 — 리포트 확정 전 스켈레톤 표시(lane:analysis) */
+  analysisLoading: boolean;
   onBackToList: () => void;
   onConfirmDraft: (draftId: string) => void;
   onCancelDraft: (draftId: string) => void;
@@ -39,6 +44,8 @@ export function SellerWorkspace({
   results,
   showResults,
   isStreaming,
+  analysisReport,
+  analysisLoading,
   onBackToList,
   onConfirmDraft,
   onCancelDraft,
@@ -100,6 +107,15 @@ export function SellerWorkspace({
       <div className="px-4 pb-6 pt-4 sm:px-6 lg:pt-2">
         {showResults ? (
           <div className="flex flex-col gap-6">
+            {/* 분석 리포트(analysis+replace) — 스트림 중엔 스켈레톤, 확정되면 본문 */}
+            {(analysisLoading || analysisReport) && (
+              <div className="animate-in duration-300 fade-in slide-in-from-bottom-2">
+                <AnalysisReport
+                  report={analysisReport}
+                  loading={analysisLoading}
+                />
+              </div>
+            )}
             {draftResults.map((r, i) =>
               r.kind === "draft" ? (
                 <div

@@ -31,7 +31,8 @@ export default function SellerChatPage() {
   const [workspaceTab, setWorkspaceTab] =
     useState<SellerWorkspaceTab>("orders");
   // 우측 패널: 목록 vs AI 결과(diff). done.panel 과 draft 도착으로 전환된다.
-  const [showResults, setShowResults] = useState(false);
+  // 분석 로딩·리포트는 아래에서 파생으로 OR 하므로 여기엔 수동/draft 전환만 담는다.
+  const [showResultsState, setShowResults] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>("chat");
 
   const { send, confirm, retry, startNewChat, isStreaming } = useChat({
@@ -41,16 +42,30 @@ export default function SellerChatPage() {
       if (panel === "refresh") {
         queryClient.invalidateQueries({ queryKey: ["seller"] });
         setShowResults(false);
+        return;
       }
-      // replace: diff → 우측 패널을 결과로 (draft 도착 시 이미 켜짐) / keep: 현재 패널 유지
+      // keep: 되묻기·거절·일반대화 — 우측 산출물 없음 → 목록으로 복귀.
+      // 분석 되묻기(analysis+keep)면 리포트는 meta에서 이미 비워졌고, 남은 스켈레톤은
+      // isStreaming 종료로 사라진다. diff 카드가 있으면 파생값(showResults)이 유지한다.
+      if (panel === "keep") {
+        setShowResults(false);
+        return;
+      }
+      // replace: diff는 draft 도착 시 이미 켜짐 / 분석 리포트는 analysisReport로 우측에 표시됨
     },
   });
 
   const messages = useChatStore((s) => s.messages);
   const results = useChatStore((s) => s.results);
   const dropDraft = useChatStore((s) => s.dropDraft);
+  // 판매자 화면 전환 신호 — lane(즉시 로딩 준비)·analysisReport(분석 리포트 본문)
+  const lane = useChatStore((s) => s.lane);
+  const analysisReport = useChatStore((s) => s.analysisReport);
 
-  // draft 결과가 새로 도착하면 우측을 결과로 전환
+  // 분석 레인이면 스트림 도는 동안 우측에 로딩 스켈레톤(계약 §3.3: meta.lane 즉시 준비)
+  const analysisLoading = isStreaming && lane === "analysis";
+
+  // draft 도착 시 우측을 결과 영역으로 전환(증가 감지라 effect 필요)
   const draftCount = results.filter((r) => r.kind === "draft").length;
   const prevDraftCount = useRef(0);
   useEffect(() => {
@@ -60,6 +75,10 @@ export default function SellerChatPage() {
     }
     prevDraftCount.current = draftCount;
   }, [draftCount]);
+
+  // 우측 결과 영역 노출 여부 — showResults(수동/draft) OR 분석 로딩·리포트(파생).
+  // 분석은 meta 즉시 스켈레톤을 띄워야 해 effect 대신 렌더 중 파생으로 계산한다.
+  const showResults = showResultsState || analysisLoading || !!analysisReport;
 
   // 진입 시 새 대화 — 스토어가 채널 공용이라 이전 쇼핑 대화가 남아있을 수 있음.
   // 대시보드 히어로에서 넘어온 첫 메시지(?q=)가 있으면 초기화 직후 이어서 전송.
@@ -126,6 +145,8 @@ export default function SellerChatPage() {
       results={results}
       showResults={showResults}
       isStreaming={isStreaming}
+      analysisReport={analysisReport}
+      analysisLoading={analysisLoading}
       onBackToList={() => setShowResults(false)}
       onConfirmDraft={confirmDraft}
       onCancelDraft={cancelDraft}

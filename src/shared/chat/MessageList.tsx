@@ -4,6 +4,8 @@ import type { ChatMessage } from "./store";
 interface MessageListProps {
   messages: ChatMessage[];
   isStreaming: boolean;
+  /** 분석 진행 상태(판매자 progress 이벤트). 답변 전 로딩 표시용 */
+  progress?: string | null;
   onRetry: () => void;
 }
 
@@ -24,6 +26,7 @@ function TypingIndicator() {
 export function MessageList({
   messages,
   isStreaming,
+  progress,
   onRetry,
 }: MessageListProps) {
   return (
@@ -74,7 +77,19 @@ export function MessageList({
                   showTyping && "py-3",
                 )}
               >
-                {showTyping ? <TypingIndicator /> : msg.text}
+                {showTyping ? (
+                  // 진행 텍스트(analysis progress)가 있으면 로딩 문구로, 없으면 점 애니메이션
+                  progress ? (
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <TypingIndicator />
+                      {progress}
+                    </span>
+                  ) : (
+                    <TypingIndicator />
+                  )
+                ) : (
+                  msg.text
+                )}
               </span>
             )}
           </div>
