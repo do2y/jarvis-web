@@ -50,10 +50,13 @@ export function useProductReviews(
 // 카드 시딩 데이터 — 상세 도착 전 즉시 렌더용(캐시 승계).
 // queryFn이 없어 네트워크 요청을 만들지 않고, 시딩된 값이 있으면 그것만 읽는다.
 // 시딩은 useGoToProduct(shared/hooks)만 거치므로 값은 항상 SeededProductCard 완전체다.
+// enabled: false — 이 쿼리는 캐시만 읽는 용도라 자동 실행하지 않는다. 끄지 않으면
+// 시딩 없이 진입(새 탭·URL 직접)할 때 queryFn 부재 경고가 매 마운트마다 찍힌다.
+// 캐시에 시딩값이 있으면 그대로 읽고, 없으면 undefined → 상세 API가 정본을 채운다.
 export function useSeededProductCard(id: number) {
   return useQuery<SeededProductCard>({
     queryKey: ["products", id],
-    enabled: Number.isFinite(id),
+    enabled: false,
     staleTime: FIVE_MIN,
   });
 }

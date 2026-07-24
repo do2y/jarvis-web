@@ -45,12 +45,50 @@ export interface ChatSession {
 
 // 시딩 계약(SeededProductCard)에 AI 추천 이유만 더한 형태 — 상세 캐시 승계 호환 유지
 export interface ProductCard extends SeededProductCard {
-  reason: string; // AI 추천 이유 한 줄
+  reason: string; // AI 추천 이유 한 줄(CH-5는 없으면 null → FE에서 "")
+  purchasable?: boolean; // 재고·판매 가능 여부(CH-5). 목록은 이미 품절 드롭이라 대개 true
 }
 
 export interface ProductGroup {
   title: string;
   items: ProductCard[];
+}
+
+/**
+ * CH-5 추천 목록 조회 응답(GET /api/chat/lists/{listId}) 데이터부.
+ * CH-2 SSE 의 products.ready{listId} 수신 후 조회한다. items 는 플랫 배열(순서 유지).
+ * BE 가 카드 완결 필드를 최신값으로 부착(상품명·가격·정가·이미지·rating·reviewCount·purchasable).
+ * HIDDEN·품절은 BE 가 드롭. listId TTL=세션 TTL(10분), 만료·미존재 404 RESOURCE_NOT_FOUND.
+ */
+export interface ChatListResponse {
+  listId: string;
+  items: (SeededProductCard & {
+    reason: string | null; // I-21 콜백 reasons echo, 없으면 null
+    purchasable: boolean;
+  })[];
+}
+
+// ── SHOPPING/CS 전용 페이로드 (계약 CH-2) ──
+
+/**
+ * AI가 추출한 필터 조건 칩. 제거 가능하게 노출한다.
+ * 칩 제거는 왕복 — 다음 턴 message에 규약 문자열(`[조건 제거] <field>`)을 실어 재분해를 트리거.
+ */
+export interface ConditionChip {
+  field: string; // "priceMax" — 제거 왕복의 식별자
+  label: string; // "5만원 이하" — 표시용
+  value: string | number; // 50000 | "여행용품/보안용품"
+}
+
+/**
+ * 완화/되돌리기 제안 칩. relaxation(조건 완화) 또는 revert(카테고리 되돌리기) 중 정확히 하나.
+ * estCount==0 은 서버가 제외하지만 FE도 방어적으로 걸러 표시하지 않는다.
+ */
+export interface SuggestionChip {
+  label: string; // "6만원대까지 볼까요?"
+  estCount: number; // 완화 시 예상 결과 수(0이면 표시 안 함)
+  relaxation?: { field: string; value: string | number };
+  revert?: { category: string };
 }
 
 // ── SELLER 채널 전용 페이로드 ──
@@ -98,21 +136,46 @@ export interface SellerDraft {
 // 와이어 포맷: 각 이벤트는 `data: {"type":..., "data":{...}}` 한 줄(구매자·판매자 공통).
 // event: 라인은 쓰지 않는다 — payload 의 type 으로 구분한다.
 
+// 장바구니 담기 실패 사유(계약 CH-2 §action).
+// message는 AI가 조립한 사용자 노출 문구 → FE는 그대로 표시하고 reason으로만 분기.
+export type CartAddFailReason =
+  | "PRODUCT_NOT_FOUND"
+  | "STOCK_INSUFFICIENT" // 재고 부족·품절(OUT_OF_STOCK 통합)
+  | "CART_ERROR"; // 운영 오류 또는 수량 상한 초과(합산>99)
+
 export type ChatAction =
+  // ── SHOPPING/CS ──
   | { type: "CART_ADDED"; message: string; cartItemId: number }
+  | { type: "CART_ADD_FAILED"; message: string; reason: CartAddFailReason }
+  // ── SELLER ──
   | { type: "PRODUCT_UPDATED"; message: string; productId: number }
   | { type: "PRODUCT_UPDATE_FAILED"; message: string; productId: number };
+
+// 구매자 정상 종료 사유(계약 CH-2 §done). zero_result = 결과 0건.
+export type ChatFinishReason = "stop" | "zero_result";
+
+// 스트림 내부 오류 코드(계약 CH-2 §error). 종결 이벤트.
+export type ChatErrorCode =
+  | "LLM_TIMEOUT"
+  | "LLM_UNAVAILABLE"
+  | "SEARCH_FAILED"
+  | "INTERNAL";
 
 export type ChatEvent =
   // ── 공통 ──
   | { type: "token"; data: { text: string } }
   | {
       type: "done";
-      data: { finishReason: string; panel?: SellerPanel };
+      // finishReason: 구매자 stop|zero_result. panel: 판매자 우측 패널 조치.
+      data: { finishReason: ChatFinishReason; panel?: SellerPanel };
     }
-  | { type: "error"; data: { code: string; message: string } }
+  | { type: "error"; data: { code: ChatErrorCode; message: string } }
   // ── SHOPPING/CS 전용 ──
-  | { type: "conditions"; data: { items: string[] } }
+  | { type: "conditions"; data: { chips: ConditionChip[] } }
+  | { type: "suggestions"; data: { chips: SuggestionChip[] } }
+  // products.ready: 카드가 아니라 상관키 listId 만 온다(경로 B). FE가 CH-5로 목록을 조회한다.
+  | { type: "products.ready"; data: { sessionId?: string; listId: string } }
+  // products: 카드를 직접 싣는 구버전/폴백 경로(경로 A). 목·초기 시딩에서 사용.
   | { type: "products"; data: { groups: ProductGroup[] } }
   | { type: "action"; data: ChatAction }
   // ── SELLER 전용 ──

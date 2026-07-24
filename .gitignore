@@ -28,3 +28,6 @@ dist-ssr
 
 .agents/
 skills-lock.json
+
+# 로컬 전용 계약 문서 (커밋 안 함)
+docs/FE-CONTRACT-SELLER-CHAT.md

@@ -125,6 +125,9 @@ const streamWords = async (
 const sellerSse = () => `${BASE}/seller/chat`;
 const buyerSse = () => `${BASE}/api/chat`;
 
+// 구매자 추천 목록 상관키 — products.ready 가 싣고, CH-5 조회가 이 값으로 카드를 돌려준다.
+const MOCK_LIST_ID = "list-4471";
+
 export const chatHandlers = [
   // ── 세션·티켓 발급 (SSE 진입 전) — 공통 응답 봉투 { success, data } ──
   // 실제로는 로그인 AT 를 검증해 단명 streamTicket 을 발급하지만, 목은 고정값을 준다.
@@ -183,22 +186,96 @@ export const chatHandlers = [
     const body = (await request.json()) as { message?: string };
     const message = body.message ?? "";
 
-    const answer = `"${message}"에 맞는 상품을 찾았어요. 조건을 더 좁히고 싶으시면 말씀해 주세요.`;
+    // 목 의도 분기 — 실제는 LLM 라우팅. 계약 CH-2 이벤트 스키마로 발행한다.
+    const isCartAdd = /담아|장바구니|담아줘|추가해/.test(message);
+    const isZeroResult = /없는상품|zzz|재고없/.test(message);
+
     return respondSse(
       new ReadableStream({
         async start(controller) {
-          await streamWords(controller, answer);
+          // (a) 장바구니 담기 — action 이벤트로 결과 통지(성공/실패)
+          if (isCartAdd) {
+            await streamWords(controller, "요청하신 상품을 담아드릴게요.");
+            const isFail = /품절|없는/.test(message);
+            if (isFail) {
+              controller.enqueue(
+                sse("action", {
+                  type: "CART_ADD_FAILED",
+                  message: "품절된 상품이에요.",
+                  reason: "STOCK_INSUFFICIENT",
+                }),
+              );
+            } else {
+              controller.enqueue(
+                sse("action", {
+                  type: "CART_ADDED",
+                  message: "무선 키보드 1개를 담았어요.",
+                  cartItemId: 55,
+                }),
+              );
+            }
+            controller.enqueue(sse("done", { finishReason: "stop" }));
+            controller.close();
+            return;
+          }
+
+          // (b) 결과 0건 — zero_result 로 종료(에러 아님)
+          if (isZeroResult) {
+            await streamWords(controller, "조건에 맞는 상품이 없어요.");
+            controller.enqueue(sse("done", { finishReason: "zero_result" }));
+            controller.close();
+            return;
+          }
+
+          // (c) 일반 추천 — conditions → token → suggestions → products → done
           controller.enqueue(
-            sse("conditions", { items: ["원피스", "기념일", "10만원 이하"] }),
+            sse("conditions", {
+              chips: [
+                { field: "category", label: "원피스", value: "원피스" },
+                { field: "occasion", label: "기념일", value: "기념일" },
+                { field: "priceMax", label: "10만원 이하", value: 100000 },
+              ],
+            }),
+          );
+          await streamWords(
+            controller,
+            `"${message}"에 맞는 상품을 찾았어요. 조건을 더 좁히고 싶으시면 말씀해 주세요.`,
           );
           controller.enqueue(
-            sse("products", {
-              groups: [{ title: "추천 상품", items: MOCK_CHAT_PRODUCTS }],
+            sse("suggestions", {
+              chips: [
+                {
+                  label: "13만원대까지 볼까요?",
+                  relaxation: { field: "priceMax", value: 130000 },
+                  estCount: 12,
+                },
+              ],
             }),
+          );
+          // 경로 B: 카드가 아니라 상관키만 보낸다 — FE가 CH-5(GET /api/chat/lists/:listId)로 조회.
+          controller.enqueue(
+            sse("products.ready", { listId: MOCK_LIST_ID }),
           );
           controller.enqueue(sse("done", { finishReason: "stop" }));
           controller.close();
         },
+      }),
+    );
+  }),
+
+  // CH-5 추천 목록 조회 — GET /api/chat/lists/:listId (products.ready 수신 후 FE가 호출)
+  http.get(`${BASE}/api/chat/lists/:listId`, ({ params }) => {
+    // listId 만료·미존재 → 404 RESOURCE_NOT_FOUND(계약 CH-5)
+    if (params.listId !== MOCK_LIST_ID) {
+      return HttpResponse.json(
+        fail("RESOURCE_NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."),
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(
+      ok({
+        listId: MOCK_LIST_ID,
+        items: MOCK_CHAT_PRODUCTS.map((p) => ({ ...p, purchasable: true })),
       }),
     );
   }),

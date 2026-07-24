@@ -9,22 +9,25 @@ import { AppHeader } from "@/shared/ui/AppHeader";
 import { fetchPopularAsCards } from "./api";
 import { ConditionChips } from "./components/ConditionChips";
 import { ProductPanel } from "./components/ProductPanel";
+import { SuggestionChips } from "./components/SuggestionChips";
 
 export default function ChatPage() {
   const [params, setParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const { send, retry, startNewChat, isStreaming } = useChat({
-    channel: "SHOPPING",
-    // 챗봇 장바구니 담기 → 헤더 뱃지 전역 동기화 (CLAUDE.md)
-    onAction: (action) => {
-      if (action.type === "CART_ADDED") {
-        queryClient.invalidateQueries({ queryKey: ["cart"] });
-      }
-    },
-  });
+  const { send, retry, removeCondition, applySuggestion, startNewChat, isStreaming } =
+    useChat({
+      channel: "SHOPPING",
+      // 챗봇 장바구니 담기 → 헤더 뱃지 전역 동기화 (CLAUDE.md)
+      onAction: (action) => {
+        if (action.type === "CART_ADDED") {
+          queryClient.invalidateQueries({ queryKey: ["cart"] });
+        }
+      },
+    });
 
-  const { messages, results, setResults, conditions } = useChatStore();
+  const { messages, results, setResults, conditions, suggestions } =
+    useChatStore();
   const hasResults = results.length > 0;
 
   const q = params.get("q");
@@ -83,8 +86,23 @@ export default function ChatPage() {
           }
         />
       }
-      /* AI가 추출한 조건 표시 (표시 전용). 조건 완화는 suggestions가 담당 */
-      aboveInput={<ConditionChips conditions={conditions} />}
+      /* AI 추출 조건 칩(제거 가능) + 완화·되돌리기 제안 칩. 스트리밍 중엔 왕복 비활성 */
+      aboveInput={
+        (conditions.length > 0 || suggestions.length > 0) && (
+          <div className="flex flex-col gap-2">
+            <ConditionChips
+              conditions={conditions}
+              onRemove={removeCondition}
+              disabled={isStreaming}
+            />
+            <SuggestionChips
+              suggestions={suggestions}
+              onApply={applySuggestion}
+              disabled={isStreaming}
+            />
+          </div>
+        )
+      }
       resultPanel={<ProductPanel results={results} isStreaming={isStreaming} />}
     />
   );

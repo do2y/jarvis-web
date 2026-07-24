@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef } from "react";
 import { track } from "@/shared/analytics/track";
 import { ApiError } from "@/shared/api/client";
-import { streamChat } from "@/shared/chat/streamChat";
+import { streamChat, StreamStartError } from "@/shared/chat/streamChat";
 import {
   openChatSession,
   openSellerSession,
   reissueTicket,
 } from "@/shared/chat/sessions";
+import { fetchChatListCards } from "@/shared/chat/lists";
 import type {
   ChatAction,
   ChatChannel,
+  ChatEvent,
   ChatScreenContext,
   ChatSession,
   SellerPanel,
@@ -53,6 +55,7 @@ export function useChat({
     addResult,
     settleDraft,
     setConditions,
+    setSuggestions,
     setSessionId,
     setStreaming,
     setLane,
@@ -131,6 +134,10 @@ export function useChat({
         addResult(result);
       };
 
+      // products.ready(경로 B)의 CH-5 조회는 비동기다. 스트림 종료(finally) 전에
+      // 완료를 보장하려고 promise 를 모아 두고 스트림 소비 후 함께 기다린다.
+      const pendingFetches: Promise<void>[] = [];
+
       const controller = new AbortController();
       abortRef.current = controller;
 
@@ -140,23 +147,15 @@ export function useChat({
         const session = await acquireTicket();
         setSessionId(session.sessionId);
 
-        // threadId 는 계약상 프론트가 유지하는 대화 스레드 식별자(BE 는 sessionId 만 발급).
-        // reset 시 비워지고 첫 발화에서 생성 후 대화 내내 불변.
-        let threadId = useChatStore.getState().threadId;
-        if (!threadId) {
-          threadId = newId();
-          useChatStore.getState().setThreadId(threadId);
-        }
+        // threadId(계약 CH-2): 대화 스레드(방) 식별자, 필수. **MVP 는 sessionId 와 동일 값**을 싣는다
+        // (post-MVP 에 방이 분리되면 방마다 고유 값으로 분화 — 계약은 지금부터 이 필드를 유지).
+        const threadId = session.sessionId;
+        useChatStore.getState().setThreadId(threadId);
 
         const body = buildBody({ sessionId: session.sessionId, threadId });
 
-        // 2) 발급받은 llmSseUrl + streamTicket 으로 SSE 스트림 소비.
-        await streamChat(
-          session.llmSseUrl,
-          session.streamTicket,
-          body,
-          (e) => {
-            switch (e.type) {
+        const onEvent = (e: ChatEvent) => {
+          switch (e.type) {
               case "meta":
                 // 첫 프레임 — 레인으로 즉시 레이아웃·로딩 준비
                 setLane(e.data.lane);
@@ -170,8 +169,35 @@ export function useChat({
                 appendToLastAssistant(e.data.text);
                 break;
               case "conditions":
-                setConditions(e.data.items);
+                // AI 추출 조건 칩(제거 가능). 새 턴이 오면 이전 칩을 덮어쓴다.
+                setConditions(e.data.chips);
                 break;
+              case "suggestions":
+                // 완화·되돌리기 제안 칩. estCount==0 은 방어적으로 제외.
+                setSuggestions(e.data.chips.filter((c) => c.estCount > 0));
+                break;
+              case "products.ready": {
+                // 경로 B — 카드는 SSE에 없다. listId 로 CH-5 목록을 조회해 패널에 넣는다.
+                // 조회 실패(404 등)는 재시도 버튼이 아니라 안내만 — 답변 자체는 정상 종료됐으므로.
+                const { listId } = e.data;
+                pendingFetches.push(
+                  fetchChatListCards(listId)
+                    .then((items) => {
+                      if (items.length) {
+                        pushResult({
+                          kind: "products",
+                          groups: [{ title: "추천 상품", items }],
+                        });
+                      }
+                    })
+                    .catch(() => {
+                      appendToLastAssistant(
+                        "\n\n추천 목록을 불러오지 못했어요. 다시 시도해 주세요.",
+                      );
+                    }),
+                );
+                break;
+              }
               case "products":
                 pushResult({ kind: "products", groups: e.data.groups });
                 break;
@@ -209,18 +235,60 @@ export function useChat({
               }
               case "done":
                 setProgress(null);
+                // zero_result: 결과 0건(에러 아님). AI token 안내가 없었으면 기본 문구로 채운다.
+                if (e.data.finishReason === "zero_result") {
+                  const last =
+                    useChatStore.getState().messages.slice(-1)[0];
+                  if (last?.role === "assistant" && !last.text) {
+                    appendToLastAssistant(
+                      "조건에 맞는 상품을 찾지 못했어요. 조건을 바꿔 다시 시도해 주세요.",
+                    );
+                  }
+                }
                 onDoneRef.current?.(e.data.panel);
                 break;
               case "error":
+                // 종결 이벤트 — 해당 말풍선에 에러 표시(재시도 버튼). code별 분기는 불필요,
+                // message가 사용자 노출 문구다(계약 §error).
                 failLastAssistant(e.data.message);
                 break;
             }
-          },
-          controller.signal,
-        );
+          };
+
+        // 2) llmSseUrl + streamTicket 으로 SSE 스트림 소비.
+        //    티켓 만료 401(스트림 시작 전 거부)이면 재발급 후 1회만 재시도한다(계약 CH-2).
+        //    토큰 수신이 시작된 뒤의 오류는 SSE error 이벤트로 오므로 여기서 재시도하지 않는다
+        //    (중복 담기 방지). 재발급도 실패하면 catch 로 떨어진다.
+        try {
+          await streamChat(
+            session.llmSseUrl,
+            session.streamTicket,
+            body,
+            onEvent,
+            controller.signal,
+          );
+        } catch (err) {
+          if (err instanceof StreamStartError && err.status === 401) {
+            const fresh = await reissueTicket(session.sessionId);
+            setSessionId(fresh.sessionId);
+            await streamChat(
+              fresh.llmSseUrl,
+              fresh.streamTicket,
+              body,
+              onEvent,
+              controller.signal,
+            );
+          } else {
+            throw err;
+          }
+        }
+
+        // 스트림이 끝나도 products.ready 의 CH-5 조회가 남아 있을 수 있다 — 함께 기다린다.
+        // (각 조회는 내부에서 catch 하므로 여기서 예외로 실패 처리되지 않는다.)
+        if (pendingFetches.length) await Promise.all(pendingFetches);
       } catch {
         // 자동 재시도 금지 — 해당 말풍선에 에러 표시, 재시도 버튼 제공.
-        // 세션 발급 실패(401/403/404)도 여기로 떨어진다(스트림 시작 전 거부).
+        // 세션 발급 실패(401/403/404)·티켓 재발급 실패도 여기로 떨어진다(스트림 시작 전 거부).
         failLastAssistant("응답을 받지 못했어요. 다시 시도해 주세요.");
       } finally {
         setStreaming(false);
@@ -233,6 +301,7 @@ export function useChat({
       appendToLastAssistant,
       failLastAssistant,
       setConditions,
+      setSuggestions,
       setResults,
       addResult,
       settleDraft,
@@ -296,10 +365,20 @@ export function useChat({
     if (userText) send(userText);
   }, [send]);
 
-  // 조건 칩 제거 = 후속 메시지로 전달 (별도 API 없음, CLAUDE.md)
+  // 조건 칩 제거 = 후속 메시지 왕복(별도 API 없음, 계약 CH-2 §conditions).
+  // 규약 문자열에 칩의 field 를 실어 서버가 해당 조건을 빼고 재분해하게 한다.
   const removeCondition = useCallback(
-    (name: string) => {
-      send(`[조건 제거] ${name}`);
+    (field: string) => {
+      send(`[조건 제거] ${field}`);
+    },
+    [send],
+  );
+
+  // 제안 칩(완화·되돌리기) 적용 = 칩 label 을 다음 턴 message 로 보내는 왕복(계약 §suggestions).
+  // label 이 사용자 발화 형태("6만원대까지 볼까요?")라 그대로 실으면 LLM 이 완화를 트리거한다.
+  const applySuggestion = useCallback(
+    (label: string) => {
+      send(label);
     },
     [send],
   );
@@ -316,6 +395,7 @@ export function useChat({
     confirm,
     retry,
     removeCondition,
+    applySuggestion,
     startNewChat,
     isStreaming,
   };

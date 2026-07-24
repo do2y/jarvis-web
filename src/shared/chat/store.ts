@@ -2,7 +2,9 @@ import { create } from "zustand";
 import type {
   ChatAction,
   ChatResult,
+  ConditionChip,
   SellerLane,
+  SuggestionChip,
 } from "@/shared/types/chat";
 
 // 현재 챗봇 대화 상태 — persist 안 함(새로고침 소실이 의도된 동작, CLAUDE.md)
@@ -20,7 +22,8 @@ interface ChatState {
   threadId: string | null; // 판매자 챗 계약: 대화 스레드 식별자(목록 전환·패널 변경에 불변)
   messages: ChatMessage[];
   results: ChatResult[]; // 최신 응답의 결과 카드(상품·diff)
-  conditions: string[]; // 제거 가능 조건 칩(구매자)
+  conditions: ConditionChip[]; // AI 추출 조건 칩(구매자) — field로 제거 왕복
+  suggestions: SuggestionChip[]; // 완화·되돌리기 제안 칩(구매자)
   isStreaming: boolean;
   // 판매자 챗 화면 전환 신호 — 첫 프레임 meta.lane, 진행 표시 progress
   lane: SellerLane | null;
@@ -36,7 +39,8 @@ interface ChatState {
   addResult: (result: ChatResult) => void;
   settleDraft: (draftId: string, action: ChatAction) => void;
   dropDraft: (draftId: string) => void;
-  setConditions: (items: string[]) => void;
+  setConditions: (chips: ConditionChip[]) => void;
+  setSuggestions: (chips: SuggestionChip[]) => void;
   setStreaming: (v: boolean) => void;
   setLane: (lane: SellerLane | null) => void;
   setProgress: (text: string | null) => void;
@@ -49,6 +53,7 @@ const initial = {
   messages: [],
   results: [],
   conditions: [],
+  suggestions: [],
   isStreaming: false,
   lane: null,
   progress: null,
@@ -110,6 +115,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     })),
   setConditions: (conditions) => set({ conditions }),
+  setSuggestions: (suggestions) => set({ suggestions }),
   setStreaming: (isStreaming) => set({ isStreaming }),
   setLane: (lane) => set({ lane }),
   setProgress: (progress) => set({ progress }),
